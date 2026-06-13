@@ -1,0 +1,8 @@
+:root {
+  --color-primary-text: rgba(204, 204, 204, 0.85);
+  --color-secondary-text: rgba(140, 140, 148, 0.7);
+  --color-input-underline: rgba(255, 255, 255, 0.35);
+  --color-chevron: rgba(255, 255, 255, 0.6);
+  --font-stack: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue",
+    "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}

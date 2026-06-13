@@ -1,0 +1,14 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import { registerPushServiceWorker } from "./utils/pushNotifications";
+import "./styles/theme.css";
+import "./styles/global.css";
+
+void registerPushServiceWorker();
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
