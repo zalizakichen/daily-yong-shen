@@ -23,8 +23,8 @@ self.addEventListener("message", (event) => {
   event.waitUntil(
     self.registration.showNotification(title ?? "每日用神", {
       body: body ?? "您预约的每日用神已更新，点击查看。",
-      icon: icon ?? "/background.png",
-      badge: icon ?? "/background.png",
+      icon: icon ?? "/icons/icon-192.png",
+      badge: icon ?? "/icons/icon-192.png",
       tag: "daily-yong-shen",
       data: { type: "daily-yong-shen" },
     }),

@@ -1,5 +1,5 @@
 const NOTIFICATION_TAG = "daily-yong-shen";
-const ICON_URL = "/background.png";
+const ICON_URL = "/icons/icon-192.png";
 
 export function isNotificationSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;

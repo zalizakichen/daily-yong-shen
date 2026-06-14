@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { Analytics } from "@vercel/analytics/react";
 import App from "./App";
 import { registerPushServiceWorker } from "./utils/pushNotifications";
 import "./styles/theme.css";
@@ -10,5 +11,6 @@ void registerPushServiceWorker();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
+    <Analytics />
   </StrictMode>,
 );
