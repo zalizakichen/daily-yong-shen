@@ -11,6 +11,7 @@ import {
   normalizeLearnProgress,
   type LearnProgress,
 } from "./learnProgress";
+import { normalizePushRecords, type PushHistory } from "./pushHistory";
 
 export type YongShenPath = "direct" | "learn" | null;
 
@@ -27,7 +28,9 @@ export type StoredUserProfile = {
   leisure: LeisureValue;
   schedule: ScheduleValue;
   pushEnabledSince: string | null;
-  pushHistory: string[];
+  pushRecords: PushHistory;
+  /** @deprecated 已迁移为 pushRecords */
+  pushHistory?: string[];
   onboardingPageIndex: number | null;
   learnProgress: LearnProgress;
 };
@@ -72,22 +75,27 @@ export function createDefaultProfile(name = ""): StoredUserProfile {
     leisure: "social",
     schedule: { weekdays: [], timeSlots: [] },
     pushEnabledSince: null,
-    pushHistory: [],
+    pushRecords: {},
     onboardingPageIndex: null,
     learnProgress: createDefaultLearnProgress(),
   };
 }
 
-function loadPushHistoryFromLegacy(): string[] {
+function loadPushRecordsFromLegacy(): PushHistory {
   try {
     const raw = localStorage.getItem("pushHistory");
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string");
+    if (!raw) return {};
+    return normalizePushRecords(JSON.parse(raw));
   } catch {
-    return [];
+    return {};
   }
+}
+
+function normalizeUserPushRecords(user: Partial<StoredUserProfile>): PushHistory {
+  if (user.pushRecords) {
+    return normalizePushRecords(user.pushRecords);
+  }
+  return normalizePushRecords(user.pushHistory);
 }
 
 function buildProfileFromLegacy(name: string): StoredUserProfile {
@@ -113,7 +121,7 @@ function buildProfileFromLegacy(name: string): StoredUserProfile {
     leisure: loadLeisure(),
     schedule: loadSchedule(),
     pushEnabledSince: localStorage.getItem("pushEnabledSince"),
-    pushHistory: loadPushHistoryFromLegacy(),
+    pushRecords: loadPushRecordsFromLegacy(),
     onboardingPageIndex: null,
     learnProgress: createDefaultLearnProgress(),
   };
@@ -145,6 +153,7 @@ function readStore(): UserStoreData {
         users: Array.isArray(parsed.users)
           ? parsed.users.map((user) => ({
               ...user,
+              pushRecords: normalizeUserPushRecords(user),
               learnProgress: normalizeLearnProgress(user.learnProgress),
             }))
           : [],
@@ -225,7 +234,7 @@ function syncLegacyKeys(data: UserStoreData) {
   } else {
     localStorage.removeItem("pushEnabledSince");
   }
-  localStorage.setItem("pushHistory", JSON.stringify(active.pushHistory ?? []));
+  localStorage.setItem("pushHistory", JSON.stringify(active.pushRecords ?? {}));
 }
 
 export function loadInitialProfile(): StoredUserProfile {

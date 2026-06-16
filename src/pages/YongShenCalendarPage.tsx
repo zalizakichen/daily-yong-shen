@@ -5,7 +5,7 @@ import {
   getDailyYongShenAdvice,
   type AdviceProfile,
 } from "../data/dailyYongShenAdvice";
-import { hasRecordedPush } from "../data/pushHistory";
+import { hasRecordedPush, type PushHistory } from "../data/pushHistory";
 import type { DirectionValue } from "../data/direction";
 import type { GenderValue } from "../data/gender";
 import type { LeisureValue } from "../data/leisure";
@@ -28,7 +28,7 @@ type Props = {
   shichenId: string;
   gender: GenderValue;
   fortunateYear: number;
-  pushHistory: string[];
+  pushRecords: PushHistory;
   season: SeasonValue;
   direction: DirectionValue;
   scene: SceneValue;
@@ -47,7 +47,7 @@ export default function YongShenCalendarPage({
   shichenId,
   gender,
   fortunateYear,
-  pushHistory,
+  pushRecords,
   season,
   direction,
   scene,
@@ -98,11 +98,11 @@ export default function YongShenCalendarPage({
   const monthOptions = useMemo(() => buildMonthOptions(), []);
 
   const selectedAdvice = useMemo(() => {
-    if (!hasRecordedPush(selectedDate, pushHistory)) {
+    if (!hasRecordedPush(selectedDate, pushRecords)) {
       return null;
     }
-    return getDailyYongShenAdvice(selectedDate, adviceProfile);
-  }, [selectedDate, pushHistory, adviceProfile]);
+    return getDailyYongShenAdvice(selectedDate, adviceProfile, pushRecords);
+  }, [selectedDate, pushRecords, adviceProfile]);
 
   useEffect(() => {
     if (!openPicker) return;
@@ -233,7 +233,7 @@ export default function YongShenCalendarPage({
                 );
               }
 
-              const pushed = hasRecordedPush(date, pushHistory);
+              const pushed = hasRecordedPush(date, pushRecords);
               const selected = isSameDay(date, selectedDate);
               const today = isSameDay(date, now);
 

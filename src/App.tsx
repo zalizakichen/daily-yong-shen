@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PageTransition from "./components/PageTransition";
 import DailyYongShenPage from "./pages/DailyYongShenPage";
 import WelcomeBackPage from "./pages/WelcomeBackPage";
@@ -61,11 +61,20 @@ import {
   type YongShenPath,
 } from "./data/userStore";
 import { useScheduledPushNotifications } from "./hooks/useScheduledPushNotifications";
+import { useWebPushSync } from "./hooks/useWebPushSync";
 import { formatDateKey } from "./utils/yongShenCalendar";
+import { calculateBazi } from "./utils/bazi";
+import {
+  computeDailyYongShenAdvice,
+  snapshotFromAdvice,
+  type AdviceProfile,
+} from "./data/dailyYongShenAdvice";
+import { hasRecordedPush, type PushHistory } from "./data/pushHistory";
 import {
   registerPushServiceWorker,
   requestNotificationPermission,
 } from "./utils/pushNotifications";
+import { subscribeToWebPush } from "./utils/webPushSubscription";
 
 function applyProfile(profile: StoredUserProfile) {
   return {
@@ -81,7 +90,7 @@ function applyProfile(profile: StoredUserProfile) {
     leisure: profile.leisure,
     schedule: profile.schedule,
     pushEnabledSince: profile.pushEnabledSince ?? null,
-    pushHistory: profile.pushHistory ?? [],
+    pushRecords: profile.pushRecords ?? {},
     onboardingPageIndex: profile.onboardingPageIndex ?? null,
     learnProgress: normalizeLearnProgress(profile.learnProgress),
   };
@@ -100,7 +109,7 @@ function buildStoredProfile(state: {
   leisure: LeisureValue;
   schedule: ScheduleValue;
   pushEnabledSince: string | null;
-  pushHistory: string[];
+  pushRecords: PushHistory;
   onboardingPageIndex: number | null;
   learnProgress: LearnProgress;
 }): StoredUserProfile {
@@ -117,15 +126,14 @@ function buildStoredProfile(state: {
     leisure: state.leisure,
     schedule: state.schedule,
     pushEnabledSince: state.pushEnabledSince,
-    pushHistory: state.pushHistory,
+    pushRecords: state.pushRecords,
     onboardingPageIndex: state.onboardingPageIndex,
     learnProgress: state.learnProgress,
   };
 }
 
 function resolveInitialPageIndex(profile: StoredUserProfile): number {
-  const today = formatDateKey(new Date());
-  if ((profile.pushHistory ?? []).includes(today)) {
+  if (hasRecordedPush(new Date(), profile.pushRecords ?? {})) {
     return 19;
   }
   return 0;
@@ -150,8 +158,8 @@ export default function App() {
   const [pushEnabledSince, setPushEnabledSince] = useState<string | null>(
     initial.pushEnabledSince ?? null,
   );
-  const [pushHistory, setPushHistory] = useState<string[]>(
-    initial.pushHistory ?? [],
+  const [pushRecords, setPushRecords] = useState<PushHistory>(
+    initial.pushRecords ?? {},
   );
   const [onboardingPageIndex, setOnboardingPageIndex] = useState<number | null>(
     initial.onboardingPageIndex ?? null,
@@ -175,7 +183,7 @@ export default function App() {
       leisure,
       schedule,
       pushEnabledSince,
-      pushHistory,
+      pushRecords,
       onboardingPageIndex,
       learnProgress,
     });
@@ -198,7 +206,7 @@ export default function App() {
       leisure: patch.leisure ?? leisure,
       schedule: patch.schedule ?? schedule,
       pushEnabledSince: patch.pushEnabledSince ?? pushEnabledSince,
-      pushHistory: patch.pushHistory ?? pushHistory,
+      pushRecords: patch.pushRecords ?? pushRecords,
       onboardingPageIndex: nextOnboardingPageIndex,
       learnProgress: patch.learnProgress ?? learnProgress,
     };
@@ -237,7 +245,7 @@ export default function App() {
     setLeisure(next.leisure);
     setSchedule(next.schedule);
     setPushEnabledSince(next.pushEnabledSince);
-    setPushHistory(next.pushHistory);
+    setPushRecords(next.pushRecords);
     setOnboardingPageIndex(next.onboardingPageIndex);
     setLearnProgress(next.learnProgress);
   };
@@ -248,18 +256,57 @@ export default function App() {
     persistProfile({ onboardingPageIndex: pageIndex });
   }, [pageIndex, pushEnabledSince]);
 
-  const handlePushTriggered = (nextHistory: string[]) => {
-    setPushHistory(nextHistory);
-    persistProfile({ pushHistory: nextHistory });
+  const adviceProfile: AdviceProfile = useMemo(
+    () => ({
+      userDayStem: calculateBazi(birthday, shichenId).dayStem,
+      birthday,
+      shichenId,
+      gender,
+      fortunateYear,
+      season,
+      direction,
+      scene,
+      leisure,
+    }),
+    [
+      birthday,
+      shichenId,
+      gender,
+      fortunateYear,
+      season,
+      direction,
+      scene,
+      leisure,
+    ],
+  );
+
+  const createPushSnapshot = useCallback(
+    () => snapshotFromAdvice(computeDailyYongShenAdvice(new Date(), adviceProfile)),
+    [adviceProfile],
+  );
+
+  const handlePushTriggered = (nextRecords: PushHistory) => {
+    setPushRecords(nextRecords);
+    persistProfile({ pushRecords: nextRecords });
   };
 
   useScheduledPushNotifications({
     schedule,
     pushEnabledSince,
-    pushHistory,
+    pushRecords,
     userName,
+    createPushSnapshot,
     onPushTriggered: handlePushTriggered,
     onOpenDailyPage: () => setPageIndex(19),
+  });
+
+  useWebPushSync({
+    pushEnabledSince,
+    schedule,
+    userName,
+    adviceProfile,
+    pushRecords,
+    onPushRecordsSynced: handlePushTriggered,
   });
 
   const enableDailyYongShen = async () => {
@@ -270,7 +317,10 @@ export default function App() {
       persistProfile({ pushEnabledSince: today, onboardingPageIndex: null });
     }
     await registerPushServiceWorker();
-    await requestNotificationPermission();
+    const permission = await requestNotificationPermission();
+    if (permission === "granted") {
+      await subscribeToWebPush();
+    }
     setPageIndex(15);
   };
 
@@ -350,8 +400,7 @@ export default function App() {
   const showResumeOnboarding = canResumeOnboarding(getStoredProfile());
 
   const goHome = () => {
-    const today = formatDateKey(new Date());
-    setPageIndex(pushHistory.includes(today) ? 19 : 0);
+    setPageIndex(hasRecordedPush(new Date(), pushRecords) ? 19 : 0);
   };
 
   const handleSelectUser = (name: string) => {
@@ -714,7 +763,7 @@ export default function App() {
             shichenId={shichenId}
             gender={gender}
             fortunateYear={fortunateYear}
-            pushHistory={pushHistory}
+            pushRecords={pushRecords}
             season={season}
             direction={direction}
             scene={scene}
@@ -734,6 +783,7 @@ export default function App() {
             direction={direction}
             scene={scene}
             leisure={leisure}
+            pushRecords={pushRecords}
             otherUserNames={getOtherUserNames(userName)}
             onSelectUser={handleSelectUser}
             onDeleteUser={handleDeleteUser}

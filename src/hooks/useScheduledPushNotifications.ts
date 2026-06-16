@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import type { ScheduleValue } from "../data/schedule";
-import { tryRecordTodayPush } from "../data/pushHistory";
+import {
+  getPushDateKeys,
+  tryRecordTodayPush,
+  type PushHistory,
+  type PushRecord,
+} from "../data/pushHistory";
 import {
   getPushCheckIntervalMs,
   shouldFireScheduledPush,
@@ -10,22 +15,28 @@ import { showDailyYongShenNotification } from "../utils/pushNotifications";
 type Options = {
   schedule: ScheduleValue;
   pushEnabledSince: string | null;
-  pushHistory: string[];
+  pushRecords: PushHistory;
   userName: string;
-  onPushTriggered: (nextHistory: string[]) => void;
+  /** 推送触发时计算并固化当日用神快照 */
+  createPushSnapshot: () => PushRecord;
+  onPushTriggered: (nextRecords: PushHistory) => void;
   onOpenDailyPage: () => void;
 };
 
 export function useScheduledPushNotifications({
   schedule,
   pushEnabledSince,
-  pushHistory,
+  pushRecords,
   userName,
+  createPushSnapshot,
   onPushTriggered,
   onOpenDailyPage,
 }: Options) {
-  const pushHistoryRef = useRef(pushHistory);
-  pushHistoryRef.current = pushHistory;
+  const pushRecordsRef = useRef(pushRecords);
+  pushRecordsRef.current = pushRecords;
+
+  const createPushSnapshotRef = useRef(createPushSnapshot);
+  createPushSnapshotRef.current = createPushSnapshot;
 
   const onPushTriggeredRef = useRef(onPushTriggered);
   const onOpenDailyPageRef = useRef(onOpenDailyPage);
@@ -57,24 +68,26 @@ export function useScheduledPushNotifications({
         !shouldFireScheduledPush(
           schedule,
           pushEnabledSince,
-          pushHistoryRef.current,
+          getPushDateKeys(pushRecordsRef.current),
           now,
         )
       ) {
         return;
       }
 
-      const nextHistory = tryRecordTodayPush(
+      const snapshot = createPushSnapshotRef.current();
+      const nextRecords = tryRecordTodayPush(
         schedule,
         pushEnabledSince,
-        pushHistoryRef.current,
+        pushRecordsRef.current,
+        snapshot,
         now,
       );
-      if (!nextHistory) return;
+      if (!nextRecords) return;
 
-      pushHistoryRef.current = nextHistory;
+      pushRecordsRef.current = nextRecords;
       await showDailyYongShenNotification(userName);
-      onPushTriggeredRef.current(nextHistory);
+      onPushTriggeredRef.current(nextRecords);
       onOpenDailyPageRef.current();
     };
 

@@ -6,6 +6,7 @@ import {
   getDailyYongShenAdvice,
   type AdviceProfile,
 } from "../data/dailyYongShenAdvice";
+import type { PushHistory } from "../data/pushHistory";
 import type { DirectionValue } from "../data/direction";
 import type { GenderValue } from "../data/gender";
 import type { LeisureValue } from "../data/leisure";
@@ -23,6 +24,7 @@ type Props = {
   direction: DirectionValue;
   scene: SceneValue;
   leisure: LeisureValue;
+  pushRecords: PushHistory;
   referenceDate?: Date;
   otherUserNames: string[];
   onSelectUser: (name: string) => void;
@@ -43,6 +45,7 @@ export default function DailyYongShenPage({
   direction,
   scene,
   leisure,
+  pushRecords,
   referenceDate,
   otherUserNames,
   onSelectUser,
@@ -94,8 +97,8 @@ export default function DailyYongShenPage({
   );
 
   const advice = useMemo(
-    () => getDailyYongShenAdvice(now, adviceProfile),
-    [now, adviceProfile],
+    () => getDailyYongShenAdvice(now, adviceProfile, pushRecords),
+    [now, adviceProfile, pushRecords],
   );
 
   return (

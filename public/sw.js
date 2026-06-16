@@ -1,3 +1,27 @@
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data?.json() ?? {};
+  } catch {
+    payload = {};
+  }
+
+  const title = payload.title ?? "每日用神";
+  const body =
+    payload.body ?? "您预约的每日用神已更新，点击查看。";
+  const icon = payload.icon ?? "/icons/icon-192.png";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge: icon,
+      tag: "daily-yong-shen",
+      data: payload.payload ?? { type: "daily-yong-shen" },
+    }),
+  );
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 

@@ -9,11 +9,19 @@ import { formatScene } from "./scene";
 import type { SeasonValue } from "./season";
 import { formatSeason } from "./season";
 import { DAY_MASTER_MAP } from "./dayMaster";
+import {
+  createPushRecord,
+  getPushRecord,
+  hasRecordedPush,
+  type PushHistory,
+  type PushRecord,
+} from "./pushHistory";
 import { buildEngineProfileInput } from "../utils/yongShenInput";
 import {
   calculateDailyYongShen,
   type EngineOutput,
   type WuXing,
+  type YongShenOutput,
 } from "../utils/yongShenEngine";
 
 const ELEMENT_TONE: Record<
@@ -47,6 +55,12 @@ const ELEMENT_TONE: Record<
   },
 };
 
+const BALANCED_TONE = {
+  favorable: "守中与平衡",
+  caution: "过度用力",
+  action: "维持日常节奏，不必刻意偏倚某一五行",
+};
+
 export type AdviceProfile = {
   userDayStem: string;
   birthday: BirthdayValue;
@@ -60,7 +74,7 @@ export type AdviceProfile = {
 };
 
 export type DailyYongShenAdvice = {
-  wuXing: WuXing;
+  wuXing: YongShenOutput;
   title: string;
   summary: string;
   detail: string;
@@ -86,26 +100,69 @@ export function resolveDailyYongShenEngine(
 export function resolveDailyYongShen(
   date: Date,
   profile: AdviceProfile,
-): WuXing {
+): YongShenOutput {
   return resolveDailyYongShenEngine(date, profile).todayYongShen;
+}
+
+export function adviceFromPushRecord(record: PushRecord): DailyYongShenAdvice {
+  return {
+    wuXing: record.yongShen,
+    title: record.title,
+    summary: record.summary,
+    detail: record.detail,
+    engine: {
+      todayYongShen: record.yongShen,
+      wuXingAdvise: record.detail.split("\n")[0] ?? "",
+    } as EngineOutput,
+  };
+}
+
+export function snapshotFromAdvice(advice: DailyYongShenAdvice): PushRecord {
+  return createPushRecord({
+    yongShen: advice.wuXing,
+    title: advice.title,
+    summary: advice.summary,
+    detail: advice.detail,
+  });
 }
 
 export function getDailyYongShenAdvice(
   date: Date,
   profile: AdviceProfile,
+  pushRecords?: PushHistory,
+): DailyYongShenAdvice {
+  if (pushRecords && hasRecordedPush(date, pushRecords)) {
+    const record = getPushRecord(date, pushRecords);
+    if (record) {
+      return adviceFromPushRecord(record);
+    }
+  }
+
+  return computeDailyYongShenAdvice(date, profile);
+}
+
+/** 实时计算（不读推送快照） */
+export function computeDailyYongShenAdvice(
+  date: Date,
+  profile: AdviceProfile,
 ): DailyYongShenAdvice {
   const engine = resolveDailyYongShenEngine(date, profile);
   const wuXing = engine.todayYongShen;
-  const tone = ELEMENT_TONE[wuXing];
+  const tone = wuXing === "均衡" ? BALANCED_TONE : ELEMENT_TONE[wuXing];
   const userElement = DAY_MASTER_MAP[profile.userDayStem]?.element ?? wuXing;
   const month = date.getMonth() + 1;
   const day = date.getDate();
 
-  const summary = `今日${wuXing}气主事，宜${tone.favorable}，忌${tone.caution}。`;
+  const summary =
+    wuXing === "均衡"
+      ? `今日五行盘面均衡，宜${tone.favorable}，忌${tone.caution}。`
+      : `今日${wuXing}气主事，宜${tone.favorable}，忌${tone.caution}。`;
 
   const detail = [
     engine.wuXingAdvise,
-    `与你${profile.userDayStem}${userElement}命盘相映，${tone.action}。`,
+    wuXing === "均衡"
+      ? `与你${profile.userDayStem}${userElement}命盘相映，${tone.action}。`
+      : `与你${profile.userDayStem}${userElement}命盘相映，${tone.action}。`,
     `你偏好的${formatSeason(profile.season)}季能量，可在${formatScene(profile.scene)}场景中顺势发挥。`,
     `休闲时不妨选择${formatLeisure(profile.leisure)}，并向${formatDirection(profile.direction)}活动动线靠拢。`,
   ].join("\n");
