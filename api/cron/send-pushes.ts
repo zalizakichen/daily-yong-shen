@@ -1,17 +1,31 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import {
-  computeDailyYongShenAdvice,
-  snapshotFromAdvice,
-  type AdviceProfile,
-} from "../../src/data/dailyYongShenAdvice";
-import type { PushRecord } from "../../src/data/pushHistory";
-import type { ScheduleValue, WeekdayValue } from "../../src/data/schedule";
-import { parseDateKey, startOfDay } from "../../src/utils/yongShenCalendar";
-import {
-  CRON_SLOT_GRACE_MINUTES,
-  isWithinScheduledSlotGrace,
-} from "../../src/utils/pushNotificationScheduler";
 
+type TimeSlotValue =
+  | "06:00"
+  | "08:00"
+  | "10:00"
+  | "12:00"
+  | "14:00"
+  | "16:00"
+  | "18:00";
+type WeekdayValue =
+  | "mon"
+  | "tue"
+  | "wed"
+  | "thu"
+  | "fri"
+  | "sat"
+  | "sun";
+type ScheduleValue = {
+  weekdays: WeekdayValue[];
+  timeSlots: TimeSlotValue[];
+};
+type PushRecord = {
+  yongShen: string;
+  title: string;
+  summary: string;
+  detail: string;
+};
 type PushHistory = Record<string, PushRecord>;
 type ServerAdviceProfile = {
   userDayStem: string;
@@ -41,6 +55,7 @@ type StoredPushSubscription = {
 };
 
 const SUBS_INDEX_KEY = "push:subscription-ids";
+const CRON_SLOT_GRACE_MINUTES = 15;
 const WEEKDAY_TO_JS: Record<WeekdayValue, number> = {
   sun: 0,
   mon: 1,
@@ -131,33 +146,27 @@ async function listAllSubscriptions(): Promise<StoredPushSubscription[]> {
   );
 }
 
-function toAdviceProfile(profile: ServerAdviceProfile): AdviceProfile {
-  return {
-    userDayStem: profile.userDayStem,
-    birthday: profile.birthday,
-    shichenId: profile.shichenId,
-    gender: profile.gender as AdviceProfile["gender"],
-    fortunateYear: profile.fortunateYear,
-    season: profile.season as AdviceProfile["season"],
-    direction: profile.direction as AdviceProfile["direction"],
-    scene: profile.scene as AdviceProfile["scene"],
-    leisure: profile.leisure as AdviceProfile["leisure"],
-  };
+function parseDateKey(key: string): Date {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
-function buildPushNotificationContent(
-  profile: ServerAdviceProfile,
-  date: Date,
-  userName: string,
-): { title: string; body: string; snapshot: PushRecord } {
-  const advice = computeDailyYongShenAdvice(date, toAdviceProfile(profile));
-  const snapshot = snapshotFromAdvice(advice);
-  const greeting = userName.trim() ? `${userName.trim()}，` : "";
-  return {
-    title: advice.title,
-    body: `${greeting}${advice.summary}`,
-    snapshot,
-  };
+function startOfDay(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function isWithinScheduledSlotGrace(
+  slot: TimeSlotValue,
+  hour: number,
+  minute: number,
+  graceMinutes = CRON_SLOT_GRACE_MINUTES,
+): boolean {
+  const [slotHour, slotMinute] = slot.split(":").map(Number);
+  if (hour !== slotHour) return false;
+  if (minute < slotMinute) return false;
+  return minute - slotMinute < graceMinutes;
 }
 
 function getZonedParts(timeZone: string, date = new Date()) {
@@ -225,6 +234,43 @@ function shouldFireScheduledPushInTimezone(
     zoned.minute,
     CRON_SLOT_GRACE_MINUTES,
   );
+}
+
+async function buildPushNotificationContent(
+  profile: ServerAdviceProfile,
+  date: Date,
+  userName: string,
+): Promise<{ title: string; body: string; snapshot: PushRecord }> {
+  try {
+    const { computeDailyYongShenAdvice, snapshotFromAdvice } = await import(
+      "../../src/data/dailyYongShenAdvice"
+    );
+    const advice = computeDailyYongShenAdvice(date, profile as never);
+    const snapshot = snapshotFromAdvice(advice);
+    const greeting = userName.trim() ? `${userName.trim()}，` : "";
+    return {
+      title: advice.title,
+      body: `${greeting}${advice.summary}`,
+      snapshot,
+    };
+  } catch (error) {
+    console.error("Falling back to simple push content", error);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const greeting = userName.trim() ? `${userName.trim()}，` : "";
+    const title = `${month}月${day}日每日用神`;
+    const summary = "今日用神建议已就绪，点此查看。";
+    return {
+      title,
+      body: `${greeting}${summary}`,
+      snapshot: {
+        yongShen: "均衡",
+        title,
+        summary,
+        detail: summary,
+      },
+    };
+  }
 }
 
 async function sendWebPush(
@@ -297,7 +343,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const now = new Date();
       const dateKey = todayDateKeyInTimezone(record.timezone, now);
-      const { title, body, snapshot } = buildPushNotificationContent(
+      const { title, body, snapshot } = await buildPushNotificationContent(
         record.profile,
         now,
         record.userName,
