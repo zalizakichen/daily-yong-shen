@@ -811,7 +811,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <div className="phone-frame">
-        <div className="page-bg" aria-hidden="true" />
+        <img className="page-bg" src="/background.png" alt="" aria-hidden="true" />
         <PageTransition pageKey={pageIndex}>{renderPage()}</PageTransition>
       </div>
     </div>
