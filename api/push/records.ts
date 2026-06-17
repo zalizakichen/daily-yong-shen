@@ -3,7 +3,7 @@ import {
   getSubscription,
   isKvConfigured,
   subscriptionIdFromEndpoint,
-} from "../_lib/pushStore";
+} from "../../lib/pushStore";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
