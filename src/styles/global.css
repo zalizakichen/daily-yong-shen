@@ -57,7 +57,8 @@ button {
   overscroll-behavior: none;
 }
 
-@media (max-width: 420px), (display-mode: standalone) {
+/* Mobile + iOS home screen: full viewport, background anchored to bottom */
+@media (max-width: 520px), (display-mode: standalone) {
   html,
   body {
     position: fixed;
@@ -72,35 +73,34 @@ button {
   #root,
   .app-shell,
   .phone-frame {
+    width: 100%;
     height: 100%;
-    min-height: 100%;
+    min-height: 100lvh;
+    min-height: -webkit-fill-available;
   }
 
   .app-shell {
     padding: 0;
-    min-height: 100dvh;
-    min-height: 100lvh;
-    min-height: -webkit-fill-available;
     align-items: stretch;
   }
 
   .phone-frame {
     max-width: none;
-    height: 100%;
-    min-height: 100dvh;
-    min-height: 100lvh;
-    min-height: -webkit-fill-available;
     box-shadow: none;
   }
 
   .page-bg {
     position: fixed;
-    top: calc(-1 * env(safe-area-inset-top, 0px));
-    left: calc(-1 * env(safe-area-inset-left, 0px));
-    width: calc(100% + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px));
-    height: calc(100% + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
-    min-height: calc(100lvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
-    background: url("/background.png") center center / cover no-repeat;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 0;
+    width: 100%;
+    height: 100lvh;
+    height: 100dvh;
+    min-height: -webkit-fill-available;
+    background: url("/background.png") center bottom / cover no-repeat;
+    background-color: #050408;
   }
 }
 
@@ -116,7 +116,8 @@ button {
 .page-bg {
   position: absolute;
   inset: 0;
-  background: url("/background.png") center center / cover no-repeat;
+  background: url("/background.png") center bottom / cover no-repeat;
+  background-color: #050408;
   z-index: 0;
   pointer-events: none;
 }
