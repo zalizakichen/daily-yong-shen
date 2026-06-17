@@ -246,6 +246,10 @@ export function loadInitialProfile(): StoredUserProfile {
   );
 }
 
+export function hasStoredUsers(): boolean {
+  return readStore().users.length > 0;
+}
+
 export function getOtherUserNames(activeUserName: string): string[] {
   const store = readStore();
   return store.users

@@ -54,6 +54,7 @@ import {
   createDefaultProfile,
   deleteUser,
   getOtherUserNames,
+  hasStoredUsers,
   loadInitialProfile,
   saveActiveProfile,
   switchToUser,
@@ -135,6 +136,9 @@ function buildStoredProfile(state: {
 function resolveInitialPageIndex(profile: StoredUserProfile): number {
   if (hasRecordedPush(new Date(), profile.pushRecords ?? {})) {
     return 19;
+  }
+  if (!hasStoredUsers()) {
+    return 1;
   }
   return 0;
 }
@@ -321,7 +325,7 @@ export default function App() {
     if (permission === "granted") {
       await subscribeToWebPush();
     }
-    setPageIndex(15);
+    setPageIndex(0);
   };
 
   const updateUserNameDraft = (name: string) => {

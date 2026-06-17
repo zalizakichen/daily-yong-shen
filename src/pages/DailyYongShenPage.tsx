@@ -68,9 +68,7 @@ export default function DailyYongShenPage({
     return () => window.clearInterval(timer);
   }, [referenceDate]);
 
-  const prompt = userName
-    ? `欢迎回来，${userName}\n每日用神输出结果`
-    : "欢迎回来\n每日用神输出结果";
+  const prompt = "日月光华，旦复旦兮\n今天你要";
 
   const adviceProfile: AdviceProfile = useMemo(
     () => ({
