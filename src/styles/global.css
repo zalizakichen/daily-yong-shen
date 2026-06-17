@@ -9,10 +9,7 @@
 html,
 body,
 #root {
-  width: 100%;
   height: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
 body {
@@ -38,12 +35,10 @@ button {
 
 .app-shell {
   min-height: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  overflow: hidden;
 }
 
 .phone-frame {
@@ -55,83 +50,18 @@ button {
   border-radius: 0;
   overflow: hidden;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
-  overscroll-behavior: none;
 }
 
-/* Mobile + iOS home screen: 100dvh 撑满，背景 cover 贴底 */
-@media (max-width: 520px), (display-mode: standalone) {
-  html,
-  body,
-  #root,
-  .app-shell,
-  .phone-frame {
-    width: 100%;
-    height: 100dvh;
-    min-height: 100dvh;
-    min-height: -webkit-fill-available;
-  }
-
-  html,
-  body {
-    position: fixed;
-    inset: 0;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    overscroll-behavior: none;
-    background-color: #0a080f;
-  }
-
+@media (max-width: 420px) {
   .app-shell {
     padding: 0;
-    align-items: stretch;
   }
 
   .phone-frame {
     max-width: none;
+    height: 100dvh;
+    min-height: 100dvh;
     box-shadow: none;
-    position: relative;
-    z-index: 1;
-  }
-
-  .page-bg {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: calc(-1 * env(safe-area-inset-top, 0px));
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
-    width: 100%;
-    height: calc(
-      100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)
-    );
-    object-fit: cover;
-    object-position: center bottom;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  #root,
-  .app-shell {
-    position: relative;
-    z-index: 1;
-  }
-}
-
-/* 主屏幕书签无浏览器栏，用 lvh 取最大视口高度 */
-@media (display-mode: standalone) {
-  html,
-  body,
-  #root,
-  .app-shell,
-  .phone-frame {
-    height: 100lvh;
-    min-height: 100lvh;
-  }
-
-  .page-bg {
-    height: calc(
-      100lvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)
-    );
   }
 }
 
@@ -151,7 +81,7 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center bottom;
+  object-position: center center;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
