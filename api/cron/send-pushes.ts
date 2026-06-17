@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { buildPushNotificationContent } from "../../server/computePushAdvice";
 import {
+  isKvConfigured,
   listAllSubscriptions,
   removeSubscription,
   updatePushRecords,
@@ -29,69 +30,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const subscriptions = await listAllSubscriptions();
-  let sent = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  for (const record of subscriptions) {
-    const pushHistory = Object.keys(record.pushRecords);
-    const shouldFire = shouldFireScheduledPushInTimezone(
-      record.schedule,
-      record.pushEnabledSince,
-      pushHistory,
-      record.timezone,
-    );
-
-    if (!shouldFire) {
-      skipped += 1;
-      continue;
-    }
-
-    const now = new Date();
-    const dateKey = todayDateKeyInTimezone(record.timezone, now);
-    const { title, body, snapshot } = buildPushNotificationContent(
-      record.profile,
-      now,
-      record.userName,
-    );
-
-    try {
-      await sendWebPush(record.subscription, {
-        title,
-        body,
-        icon: "/icons/icon-192.png",
-        payload: {
-          type: "daily-yong-shen",
-          dateKey,
-          pushRecord: snapshot,
-        },
-      });
-
-      await updatePushRecords(record.id, {
-        ...record.pushRecords,
-        [dateKey]: snapshot,
-      });
-      sent += 1;
-    } catch (error) {
-      const statusCode =
-        error && typeof error === "object" && "statusCode" in error
-          ? Number((error as { statusCode: number }).statusCode)
-          : 0;
-
-      if (statusCode === 404 || statusCode === 410) {
-        await removeSubscription(record.id);
-      }
-
-      console.error(`Failed to push to ${record.id}`, error);
-      failed += 1;
-    }
+  if (!isKvConfigured()) {
+    res.status(503).json({
+      error: "Push storage is not configured. Connect Upstash Redis on Vercel.",
+    });
+    return;
   }
 
-  res.status(200).json({
-    checked: subscriptions.length,
-    sent,
-    skipped,
-    failed,
-  });
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    res.status(503).json({
+      error: "VAPID keys are not configured on Vercel.",
+    });
+    return;
+  }
+
+  try {
+    const subscriptions = await listAllSubscriptions();
+    let sent = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const record of subscriptions) {
+      const pushHistory = Object.keys(record.pushRecords);
+      const shouldFire = shouldFireScheduledPushInTimezone(
+        record.schedule,
+        record.pushEnabledSince,
+        pushHistory,
+        record.timezone,
+      );
+
+      if (!shouldFire) {
+        skipped += 1;
+        continue;
+      }
+
+      const now = new Date();
+      const dateKey = todayDateKeyInTimezone(record.timezone, now);
+      const { title, body, snapshot } = buildPushNotificationContent(
+        record.profile,
+        now,
+        record.userName,
+      );
+
+      try {
+        await sendWebPush(record.subscription, {
+          title,
+          body,
+          icon: "/icons/icon-192.png",
+          payload: {
+            type: "daily-yong-shen",
+            dateKey,
+            pushRecord: snapshot,
+          },
+        });
+
+        await updatePushRecords(record.id, {
+          ...record.pushRecords,
+          [dateKey]: snapshot,
+        });
+        sent += 1;
+      } catch (error) {
+        const statusCode =
+          error && typeof error === "object" && "statusCode" in error
+            ? Number((error as { statusCode: number }).statusCode)
+            : 0;
+
+        if (statusCode === 404 || statusCode === 410) {
+          await removeSubscription(record.id);
+        }
+
+        console.error(`Failed to push to ${record.id}`, error);
+        failed += 1;
+      }
+    }
+
+    res.status(200).json({
+      checked: subscriptions.length,
+      sent,
+      skipped,
+      failed,
+    });
+  } catch (error) {
+    console.error("send-pushes cron failed", error);
+    res.status(500).json({
+      error: "Cron handler failed",
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

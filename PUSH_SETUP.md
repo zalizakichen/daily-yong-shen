@@ -2,60 +2,36 @@
 
 ## 1. 生成 VAPID 密钥
 
-在项目根目录执行：
-
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-将输出的 Public Key / Private Key 填入 Vercel 环境变量：
+填入 Vercel 环境变量：`VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT`（如 `mailto:your@email.com`）。
 
-| 变量 | 说明 |
-|------|------|
-| `VAPID_PUBLIC_KEY` | 公钥 |
-| `VAPID_PRIVATE_KEY` | 私钥 |
-| `VAPID_SUBJECT` | 例如 `mailto:your@email.com` |
+## 2. 连接 Upstash Redis
 
-## 2. 连接 Redis（Upstash）
+Vercel → **Integrations** → **Upstash Redis** → 关联本项目。
 
-1. 在 Vercel 项目 → **Integrations** → Marketplace → 搜索 **Upstash Redis**
-2. 创建并关联到本项目（会自动注入 `UPSTASH_REDIS_REST_URL` 与 `UPSTASH_REDIS_REST_TOKEN`）
+## 3. 配置 CRON_SECRET
 
-## 3. 配置定时触发（Hobby 计划必读）
+Vercel **Environment Variables** 添加 `CRON_SECRET`（随机字符串，Sensitive）。
 
-**Vercel Hobby 免费版 Cron 每天只能运行 1 次**，无法使用 `vercel.json` 内置每 5 分钟 Cron。
+## 4. 配置 cron-job.org（7 个整点）
 
-请改用 **外部定时服务**（免费）每 5 分钟访问推送接口：
+详见 **[scripts/cron-jobs-beijing.md](./scripts/cron-jobs-beijing.md)**。
 
-### 3.1 设置 CRON_SECRET
+北京时间 **06:00 / 08:00 / 10:00 / 12:00 / 14:00 / 16:00 / 18:00** 各 1 个任务，每天共 7 次请求。
 
-在 Vercel **Environment Variables** 手动添加：
-
-| 变量 | 说明 |
-|------|------|
-| `CRON_SECRET` | 自行生成一串随机密码（如 32 位字母数字），勾选 Sensitive |
-
-### 3.2 注册 cron-job.org（推荐）
-
-1. 打开 https://cron-job.org 注册免费账号  
-2. **Create cronjob**  
-   - **URL**: `https://daily-yong-shen.vercel.app/api/cron/send-pushes`  
-   - **Schedule**: 每 5 分钟（或 `*/5 * * * *`）  
-   - **Request method**: GET  
-   - **Headers**: `Authorization: Bearer 你的CRON_SECRET`  
-3. 保存并启用  
-
-成功时接口返回 JSON：`{"checked":0,"sent":0,...}`（无订阅用户时 sent 为 0 也正常）。
-
-## 4. 部署
+## 5. 部署
 
 `git push` 后 Vercel 自动部署，或 **Deployments → Redeploy**。
 
-## 5. 手机端要求
+验证：https://daily-yong-shen.vercel.app/api/push/vapid-public-key 应返回 `{"publicKey":"..."}`。
 
-- **Android Chrome**：添加到主屏幕后，授予通知权限即可。
-- **iOS 16.4+**：须「添加到主屏幕」打开（非 Safari 标签页），并允许通知。
-- 首次开启每日用神时，需联网完成 Web Push 订阅同步。
+## 6. 手机端
+
+- Android Chrome / iOS 16.4+：添加到主屏幕，允许通知。
+- 开启每日用神时需联网完成 Web Push 订阅。
 
 ## 本地开发 API
 
@@ -63,5 +39,3 @@ npx web-push generate-vapid-keys
 npm i -g vercel
 vercel dev
 ```
-
-仅 `npm run dev` 不会启动 `/api` 路由。

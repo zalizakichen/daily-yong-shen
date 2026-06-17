@@ -1,6 +1,9 @@
-import type { ScheduleValue, TimeSlotValue, WeekdayValue } from "../src/data/schedule";
+import type { ScheduleValue, TimeSlotValue, WeekdayValue } from "../data/schedule";
 import { parseDateKey, startOfDay } from "../src/utils/yongShenCalendar";
-import { PUSH_FIRE_WINDOW_MS } from "../src/utils/pushNotificationScheduler";
+import {
+  CRON_SLOT_GRACE_MINUTES,
+  isWithinScheduledSlotGrace,
+} from "../src/utils/pushNotificationScheduler";
 
 const WEEKDAY_TO_JS: Record<WeekdayValue, number> = {
   sun: 0,
@@ -64,11 +67,6 @@ function formatDateKeyInTimezone(timeZone: string, date = new Date()): string {
   return `${zoned.year}-${month}-${day}`;
 }
 
-function parseTimeSlot(slot: TimeSlotValue): { hour: number; minute: number } {
-  const [hour, minute] = slot.split(":").map(Number);
-  return { hour, minute };
-}
-
 function matchesScheduleWeekday(
   schedule: ScheduleValue,
   weekday: number,
@@ -109,12 +107,12 @@ export function shouldFireScheduledPushInTimezone(
   const slot = schedule.timeSlots[0];
   if (!slot) return false;
 
-  const { hour, minute } = parseTimeSlot(slot);
-  const scheduledMinutes = hour * 60 + minute;
-  const currentMinutes = zoned.hour * 60 + zoned.minute;
-  const elapsedMs = (currentMinutes - scheduledMinutes) * 60_000;
-
-  return elapsedMs >= 0 && elapsedMs < PUSH_FIRE_WINDOW_MS;
+  return isWithinScheduledSlotGrace(
+    slot,
+    zoned.hour,
+    zoned.minute,
+    CRON_SLOT_GRACE_MINUTES,
+  );
 }
 
 export function todayDateKeyInTimezone(timeZone: string, now = new Date()): string {

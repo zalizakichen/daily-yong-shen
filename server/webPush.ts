@@ -21,8 +21,10 @@ export function getVapidPublicKey(): string | null {
   return process.env.VAPID_PUBLIC_KEY ?? null;
 }
 
+type PushSubscription = webpush.PushSubscription;
+
 export async function sendWebPush(
-  subscription: webpush.PushSubscription,
+  subscription: PushSubscription,
   payload: Record<string, unknown>,
 ): Promise<void> {
   ensureWebPushConfigured();
@@ -30,5 +32,3 @@ export async function sendWebPush(
     TTL: 86_400,
   });
 }
-
-export { webpush };

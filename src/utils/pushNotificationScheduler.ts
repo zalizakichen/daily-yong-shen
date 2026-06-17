@@ -15,12 +15,28 @@ const WEEKDAY_TO_JS: Record<WeekdayValue, number> = {
   sat: 6,
 };
 
-/** 推送触发窗口：应对后台标签页定时器节流 */
-export const PUSH_FIRE_WINDOW_MS = 120_000;
+/** Cron 在每个整点触发后，允许命中的分钟宽限（与 cron-job.org 7 整点方案配套） */
+export const CRON_SLOT_GRACE_MINUTES = 15;
+
+/** 前台 App 打开时的推送检测窗口（毫秒） */
+export const PUSH_FIRE_WINDOW_MS = CRON_SLOT_GRACE_MINUTES * 60_000;
 
 function parseTimeSlot(slot: TimeSlotValue): { hour: number; minute: number } {
   const [hour, minute] = slot.split(":").map(Number);
   return { hour, minute };
+}
+
+/** 当前时刻是否落在预约整点后的宽限窗口内 */
+export function isWithinScheduledSlotGrace(
+  slot: TimeSlotValue,
+  hour: number,
+  minute: number,
+  graceMinutes = CRON_SLOT_GRACE_MINUTES,
+): boolean {
+  const { hour: slotHour, minute: slotMinute } = parseTimeSlot(slot);
+  if (hour !== slotHour) return false;
+  if (minute < slotMinute) return false;
+  return minute - slotMinute < graceMinutes;
 }
 
 /** 若今天符合预约星期，返回今日预约推送时刻 */
@@ -71,8 +87,14 @@ export function shouldFireScheduledPush(
   const pushTime = getTodayPushDateTime(schedule, now);
   if (!pushTime) return false;
 
-  const elapsed = now.getTime() - pushTime.getTime();
-  return elapsed >= 0 && elapsed < PUSH_FIRE_WINDOW_MS;
+  const slot = schedule.timeSlots[0];
+  if (!slot) return false;
+
+  return isWithinScheduledSlotGrace(
+    slot,
+    now.getHours(),
+    now.getMinutes(),
+  );
 }
 
 export function getPushCheckIntervalMs(
