@@ -2,9 +2,9 @@ import {
   computeDailyYongShenAdvice,
   snapshotFromAdvice,
   type AdviceProfile,
-} from "../src/data/dailyYongShenAdvice";
-import type { PushRecord } from "../src/data/pushHistory";
-import type { ServerAdviceProfile } from "./pushTypes";
+} from "../../src/data/dailyYongShenAdvice";
+import type { PushRecord } from "../../src/data/pushHistory";
+import type { ServerAdviceProfile } from "../push/_pushTypes";
 
 function toAdviceProfile(profile: ServerAdviceProfile): AdviceProfile {
   return {

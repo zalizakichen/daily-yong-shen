@@ -52,35 +52,44 @@ async function upstashRequest(body: unknown): Promise<unknown> {
   return data.result;
 }
 
-export async function upstashCommand(...args: string[]): Promise<unknown> {
+async function upstashCommand(...args: string[]): Promise<unknown> {
   return upstashRequest(args);
 }
 
-export async function upstashSetJson(key: string, value: unknown): Promise<void> {
+async function upstashSetJson(key: string, value: unknown): Promise<void> {
   await upstashCommand("SET", key, JSON.stringify(value));
 }
 
-export async function upstashGetJson<T>(key: string): Promise<T | null> {
+async function upstashGetJson<T>(key: string): Promise<T | null> {
   const result = await upstashCommand("GET", key);
   if (result === null || result === undefined) return null;
   if (typeof result !== "string") return result as T;
   return JSON.parse(result) as T;
 }
 
-export async function upstashSmembers(key: string): Promise<string[]> {
+async function upstashSmembers(key: string): Promise<string[]> {
   const result = await upstashCommand("SMEMBERS", key);
   if (!Array.isArray(result)) return [];
   return result.filter((item): item is string => typeof item === "string");
 }
 
-export async function upstashDel(key: string): Promise<void> {
+async function upstashDel(key: string): Promise<void> {
   await upstashCommand("DEL", key);
 }
 
-export async function upstashSadd(key: string, member: string): Promise<void> {
+async function upstashSadd(key: string, member: string): Promise<void> {
   await upstashCommand("SADD", key, member);
 }
 
-export async function upstashSrem(key: string, member: string): Promise<void> {
+async function upstashSrem(key: string, member: string): Promise<void> {
   await upstashCommand("SREM", key, member);
 }
+
+export {
+  upstashDel,
+  upstashGetJson,
+  upstashSadd,
+  upstashSetJson,
+  upstashSmembers,
+  upstashSrem,
+};

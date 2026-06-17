@@ -3,7 +3,7 @@ import {
   getSubscription,
   isKvConfigured,
   subscriptionIdFromEndpoint,
-} from "../../lib/pushStore";
+} from "./_pushStore";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const id = subscriptionIdFromEndpoint(endpoint);
+  const id = await subscriptionIdFromEndpoint(endpoint);
   const record = await getSubscription(id);
   if (!record) {
     res.status(404).json({ error: "Subscription not found" });

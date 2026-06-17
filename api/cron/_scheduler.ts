@@ -1,9 +1,9 @@
-import type { ScheduleValue, WeekdayValue } from "../src/data/schedule";
-import { parseDateKey, startOfDay } from "../src/utils/yongShenCalendar";
+import type { ScheduleValue, WeekdayValue } from "../../src/data/schedule";
+import { parseDateKey, startOfDay } from "../../src/utils/yongShenCalendar";
 import {
   CRON_SLOT_GRACE_MINUTES,
   isWithinScheduledSlotGrace,
-} from "../src/utils/pushNotificationScheduler";
+} from "../../src/utils/pushNotificationScheduler";
 
 const WEEKDAY_TO_JS: Record<WeekdayValue, number> = {
   sun: 0,

@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import {
   isUpstashConfigured,
   upstashDel,
@@ -7,16 +6,19 @@ import {
   upstashSetJson,
   upstashSmembers,
   upstashSrem,
-} from "./upstashRest";
+} from "./_upstashRest";
 import type {
   PushHistory,
   StoredPushSubscription,
   SubscribeRequestBody,
-} from "./pushTypes";
+} from "./_pushTypes";
 
 const SUBS_INDEX_KEY = "push:subscription-ids";
 
-export function subscriptionIdFromEndpoint(endpoint: string): string {
+export async function subscriptionIdFromEndpoint(
+  endpoint: string,
+): Promise<string> {
+  const { createHash } = await import("node:crypto");
   return createHash("sha256").update(endpoint).digest("hex").slice(0, 32);
 }
 
@@ -46,7 +48,7 @@ export async function removeSubscription(id: string): Promise<void> {
 export async function upsertSubscription(
   body: SubscribeRequestBody,
 ): Promise<StoredPushSubscription> {
-  const id = subscriptionIdFromEndpoint(body.subscription.endpoint);
+  const id = await subscriptionIdFromEndpoint(body.subscription.endpoint);
   const existing = await getSubscription(id);
   const pushRecords: PushHistory = {
     ...(existing?.pushRecords ?? {}),
