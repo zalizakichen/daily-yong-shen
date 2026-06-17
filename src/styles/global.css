@@ -9,7 +9,8 @@
 html,
 body,
 #root {
-  height: 100%;
+  height: var(--app-height, 100%);
+  min-height: var(--app-height, 100%);
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -64,7 +65,8 @@ button {
     position: fixed;
     inset: 0;
     width: 100%;
-    height: 100%;
+    height: var(--app-height, 100%);
+    min-height: var(--app-height, 100%);
     overflow: hidden;
     overscroll-behavior: none;
     background-color: #0a080f;
@@ -74,9 +76,8 @@ button {
   .app-shell,
   .phone-frame {
     width: 100%;
-    height: 100%;
-    min-height: 100lvh;
-    min-height: -webkit-fill-available;
+    height: var(--app-height, 100%);
+    min-height: var(--app-height, 100%);
   }
 
   .app-shell {
@@ -94,21 +95,20 @@ button {
     left: 0;
     right: 0;
     top: auto;
-    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+    bottom: 0;
     width: 100%;
-    height: calc(100lvh + env(safe-area-inset-bottom, 0px));
-    min-height: calc(100% + env(safe-area-inset-bottom, 0px));
+    height: var(--app-height, 100vh);
     object-fit: cover;
     object-position: center bottom;
     z-index: 0;
   }
 }
 
-@supports (-webkit-touch-callout: none) {
-  @media (max-width: 520px), (display-mode: standalone) {
-    .page-bg {
-      height: calc(-webkit-fill-available + env(safe-area-inset-bottom, 0px));
-    }
+/* 主屏幕 PWA：视口单位比物理屏矮，背景向下溢出 ~1cm 盖住底边黑条 */
+@media (display-mode: standalone) {
+  .page-bg {
+    bottom: calc(-1 * var(--pwa-bottom-bleed, 48px));
+    height: calc(var(--app-height, 100vh) + var(--pwa-bottom-bleed, 48px));
   }
 }
 
