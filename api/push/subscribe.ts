@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isKvConfigured, upsertSubscription } from "../../server/pushStore";
-import type { SubscribeRequestBody } from "../../server/types";
+import { isKvConfigured, upsertSubscription } from "../_lib/pushStore";
+import type { SubscribeRequestBody } from "../_lib/pushTypes";
 
 function isValidBody(body: unknown): body is SubscribeRequestBody {
   if (!body || typeof body !== "object") return false;

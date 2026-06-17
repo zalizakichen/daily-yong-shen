@@ -1,16 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { buildPushNotificationContent } from "../../server/computePushAdvice";
 import {
   isKvConfigured,
   listAllSubscriptions,
   removeSubscription,
   updatePushRecords,
-} from "../../server/pushStore";
-import {
-  shouldFireScheduledPushInTimezone,
-  todayDateKeyInTimezone,
-} from "../../server/scheduler";
-import { sendWebPush } from "../../server/webPush";
+} from "../_lib/pushStore";
 
 function isAuthorizedCron(req: VercelRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -45,6 +39,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const [
+      { buildPushNotificationContent },
+      { shouldFireScheduledPushInTimezone, todayDateKeyInTimezone },
+      { sendWebPush },
+    ] = await Promise.all([
+      import("../_lib/computePushAdvice"),
+      import("../_lib/scheduler"),
+      import("../_lib/webPush"),
+    ]);
+
     const subscriptions = await listAllSubscriptions();
     let sent = 0;
     let skipped = 0;
