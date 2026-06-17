@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import AppBackground from "./components/AppBackground";
 import PageTransition from "./components/PageTransition";
 import DailyYongShenPage from "./pages/DailyYongShenPage";
 import WelcomeBackPage from "./pages/WelcomeBackPage";
@@ -812,7 +811,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <div className="phone-frame">
-        <AppBackground />
+        <img className="page-bg" src="/background.png" alt="" aria-hidden="true" />
         <PageTransition pageKey={pageIndex}>{renderPage()}</PageTransition>
       </div>
     </div>
