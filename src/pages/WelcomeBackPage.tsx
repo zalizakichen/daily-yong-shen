@@ -33,7 +33,9 @@ export default function WelcomeBackPage({
 }: Props) {
   const [now, setNow] = useState(() => new Date());
 
-  const prompt = "盈亏有时，月未升起\n距离下次每日用神推荐还有";
+  const prompt = userName
+    ? `欢迎回来，${userName}\n盈亏有时，月未升起\n距离下次每日用神推荐还有`
+    : "欢迎回来\n盈亏有时，月未升起\n距离下次每日用神推荐还有";
 
   const nextPush = useMemo(
     () => getNextPushTime(schedule, now),
