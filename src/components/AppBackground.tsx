@@ -1,15 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { resyncViewportHeight } from "../utils/viewportHeight";
+import { isStandalonePwa, resyncViewportHeight } from "../utils/viewportHeight";
 
 const MOBILE_BG_QUERY = "(max-width: 520px), (display-mode: standalone)";
-
-function isStandalonePwa(): boolean {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
 
 function useMobileBackground() {
   const [mobile, setMobile] = useState(
@@ -20,7 +13,8 @@ function useMobileBackground() {
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_BG_QUERY);
-    const sync = () => setMobile(mq.matches);
+    const sync = () =>
+      setMobile(mq.matches || isStandalonePwa());
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
@@ -35,12 +29,6 @@ export default function AppBackground() {
 
   useEffect(() => {
     resyncViewportHeight();
-    const t1 = window.setTimeout(resyncViewportHeight, 50);
-    const t2 = window.setTimeout(resyncViewportHeight, 300);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
   }, [mobile]);
 
   if (mobile) {
