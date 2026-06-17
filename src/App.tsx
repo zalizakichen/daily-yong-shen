@@ -30,7 +30,6 @@ import ScenePage from "./pages/ScenePage";
 import LeisurePage from "./pages/LeisurePage";
 import SchedulePage from "./pages/SchedulePage";
 import ReviewPage from "./pages/ReviewPage";
-import CountdownPage from "./pages/CountdownPage";
 import YongShenCalendarPage from "./pages/YongShenCalendarPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import type { BirthdayValue } from "./components/DateWheelPicker";
@@ -724,8 +723,15 @@ export default function App() {
           );
         }
         return (
-          <CountdownPage
+          <WelcomeBackPage
+            userName={userName}
             schedule={schedule}
+            otherUserNames={getOtherUserNames(userName)}
+            showResumeOnboarding={showResumeOnboarding}
+            onResumeOnboarding={handleResumeOnboarding}
+            onSelectUser={handleSelectUser}
+            onDeleteUser={handleDeleteUser}
+            onNewUser={handleNewUser}
             onOpenProfileBazi={() => setPageIndex(16)}
             onOpenProfileSchedule={() => setPageIndex(17)}
             onOpenProfileCalendar={() => setPageIndex(18)}
