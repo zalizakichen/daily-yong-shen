@@ -9,5 +9,10 @@ export default function handler(_req: VercelRequest, res: VercelResponse) {
   res.status(200).json({
     ok: true,
     redisConfigured: Boolean(url && token),
+    envSource: process.env.KV_REST_API_URL
+      ? "KV_REST_API_*"
+      : process.env.UPSTASH_REDIS_REST_URL
+        ? "UPSTASH_REDIS_*"
+        : "none",
   });
 }

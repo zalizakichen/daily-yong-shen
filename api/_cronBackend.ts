@@ -1,9 +1,17 @@
-import type { ScheduleValue, WeekdayValue } from "../../src/data/schedule";
-import { parseDateKey, startOfDay } from "../../src/utils/yongShenCalendar";
+import {
+  computeDailyYongShenAdvice,
+  snapshotFromAdvice,
+  type AdviceProfile,
+} from "../src/data/dailyYongShenAdvice";
+import type { PushRecord } from "../src/data/pushHistory";
+import type { ScheduleValue, WeekdayValue } from "../src/data/schedule";
+import { parseDateKey, startOfDay } from "../src/utils/yongShenCalendar";
 import {
   CRON_SLOT_GRACE_MINUTES,
   isWithinScheduledSlotGrace,
-} from "../../src/utils/pushNotificationScheduler";
+} from "../src/utils/pushNotificationScheduler";
+import type { ServerAdviceProfile } from "./_pushBackend";
+import type webpush from "web-push";
 
 const WEEKDAY_TO_JS: Record<WeekdayValue, number> = {
   sun: 0,
@@ -24,6 +32,38 @@ const JS_DAY_FROM_SHORT: Record<string, number> = {
   Fri: 5,
   Sat: 6,
 };
+
+function toAdviceProfile(profile: ServerAdviceProfile): AdviceProfile {
+  return {
+    userDayStem: profile.userDayStem,
+    birthday: profile.birthday,
+    shichenId: profile.shichenId,
+    gender: profile.gender as AdviceProfile["gender"],
+    fortunateYear: profile.fortunateYear,
+    season: profile.season as AdviceProfile["season"],
+    direction: profile.direction as AdviceProfile["direction"],
+    scene: profile.scene as AdviceProfile["scene"],
+    leisure: profile.leisure as AdviceProfile["leisure"],
+  };
+}
+
+export function buildPushNotificationContent(
+  profile: ServerAdviceProfile,
+  date: Date,
+  userName: string,
+): { title: string; body: string; snapshot: PushRecord } {
+  const advice = computeDailyYongShenAdvice(date, toAdviceProfile(profile));
+  const snapshot = snapshotFromAdvice(advice);
+  const greeting = userName.trim()
+    ? `${userName.trim()}，`
+    : "";
+
+  return {
+    title: advice.title,
+    body: `${greeting}${advice.summary}`,
+    snapshot,
+  };
+}
 
 type ZonedParts = {
   year: number;
@@ -116,4 +156,44 @@ export function shouldFireScheduledPushInTimezone(
 
 export function todayDateKeyInTimezone(timeZone: string, now = new Date()): string {
   return formatDateKeyInTimezone(timeZone, now);
+}
+
+let configured = false;
+let webPushModule: typeof webpush | null = null;
+
+async function getWebPushModule(): Promise<typeof webpush> {
+  if (!webPushModule) {
+    const module = await import("web-push");
+    webPushModule = module.default;
+  }
+  return webPushModule;
+}
+
+async function ensureWebPushConfigured(): Promise<typeof webpush> {
+  const webpush = await getWebPushModule();
+  if (configured) return webpush;
+
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const subject = process.env.VAPID_SUBJECT ?? "mailto:admin@example.com";
+
+  if (!publicKey || !privateKey) {
+    throw new Error("VAPID keys are not configured");
+  }
+
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  configured = true;
+  return webpush;
+}
+
+type PushSubscription = webpush.PushSubscription;
+
+export async function sendWebPush(
+  subscription: PushSubscription,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const webpush = await ensureWebPushConfigured();
+  await webpush.sendNotification(subscription, JSON.stringify(payload), {
+    TTL: 86_400,
+  });
 }

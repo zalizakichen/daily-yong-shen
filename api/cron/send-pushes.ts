@@ -4,7 +4,7 @@ import {
   listAllSubscriptions,
   removeSubscription,
   updatePushRecords,
-} from "../push/_pushStore";
+} from "../_pushBackend";
 
 function isAuthorizedCron(req: VercelRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -39,15 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const [
-      { buildPushNotificationContent },
-      { shouldFireScheduledPushInTimezone, todayDateKeyInTimezone },
-      { sendWebPush },
-    ] = await Promise.all([
-      import("./_computePushAdvice"),
-      import("./_scheduler"),
-      import("./_webPush"),
-    ]);
+    const {
+      buildPushNotificationContent,
+      shouldFireScheduledPushInTimezone,
+      todayDateKeyInTimezone,
+      sendWebPush,
+    } = await import("../_cronBackend");
 
     const subscriptions = await listAllSubscriptions();
     let sent = 0;
