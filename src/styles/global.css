@@ -10,7 +10,6 @@ html,
 body,
 #root {
   height: 100%;
-  overflow: hidden;
   overscroll-behavior: none;
 }
 
@@ -37,12 +36,10 @@ button {
 
 .app-shell {
   min-height: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  overflow: hidden;
 }
 
 .phone-frame {
@@ -56,17 +53,30 @@ button {
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
 }
 
-@media (max-width: 420px) {
+@media (max-width: 420px), (display-mode: standalone) {
   .app-shell {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
     padding: 0;
-    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
   .phone-frame {
     max-width: none;
-    height: 100dvh;
-    min-height: 100dvh;
+    height: 100%;
+    min-height: 100%;
     box-shadow: none;
+  }
+}
+
+@media (display-mode: standalone) {
+  .app-shell {
+    height: 100lvh;
+    min-height: 100lvh;
   }
 }
 
