@@ -15,6 +15,7 @@ type Props = {
   onOpenProfileBazi: () => void;
   onOpenProfileSchedule: () => void;
   onOpenProfileCalendar: () => void;
+  onOpenProfileCalibration: () => void;
 };
 
 export default function WelcomeBackActions({
@@ -29,6 +30,7 @@ export default function WelcomeBackActions({
   onOpenProfileBazi,
   onOpenProfileSchedule,
   onOpenProfileCalendar,
+  onOpenProfileCalibration,
 }: Props) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [openSwipeRowId, setOpenSwipeRowId] = useState<string | null>(null);
@@ -121,6 +123,17 @@ export default function WelcomeBackActions({
                 }}
               >
                 我的用神日历
+              </button>
+              <button
+                type="button"
+                className="welcome-back-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  onOpenProfileCalibration();
+                  setOpenMenu(null);
+                }}
+              >
+                我的校准信息
               </button>
             </div>
           )}

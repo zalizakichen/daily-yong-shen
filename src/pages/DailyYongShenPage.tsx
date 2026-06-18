@@ -33,6 +33,7 @@ type Props = {
   onOpenProfileBazi: () => void;
   onOpenProfileSchedule: () => void;
   onOpenProfileCalendar: () => void;
+  onOpenProfileCalibration: () => void;
 };
 
 export default function DailyYongShenPage({
@@ -54,6 +55,7 @@ export default function DailyYongShenPage({
   onOpenProfileBazi,
   onOpenProfileSchedule,
   onOpenProfileCalendar,
+  onOpenProfileCalibration,
 }: Props) {
   const [now, setNow] = useState(() => referenceDate ?? new Date());
 
@@ -125,6 +127,7 @@ export default function DailyYongShenPage({
           onOpenProfileBazi={onOpenProfileBazi}
           onOpenProfileSchedule={onOpenProfileSchedule}
           onOpenProfileCalendar={onOpenProfileCalendar}
+          onOpenProfileCalibration={onOpenProfileCalibration}
         />
       </main>
     </div>

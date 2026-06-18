@@ -31,6 +31,7 @@ import LeisurePage from "./pages/LeisurePage";
 import SchedulePage from "./pages/SchedulePage";
 import ReviewPage from "./pages/ReviewPage";
 import YongShenCalendarPage from "./pages/YongShenCalendarPage";
+import ProfileCalibrationPage from "./pages/ProfileCalibrationPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import type { BirthdayValue } from "./components/DateWheelPicker";
 import type { GenderValue } from "./data/gender";
@@ -455,6 +456,7 @@ export default function App() {
             onOpenProfileBazi={() => setPageIndex(16)}
             onOpenProfileSchedule={() => setPageIndex(17)}
             onOpenProfileCalendar={() => setPageIndex(18)}
+            onOpenProfileCalibration={() => setPageIndex(20)}
           />
         );
       case 1:
@@ -735,6 +737,7 @@ export default function App() {
             onOpenProfileBazi={() => setPageIndex(16)}
             onOpenProfileSchedule={() => setPageIndex(17)}
             onOpenProfileCalendar={() => setPageIndex(18)}
+            onOpenProfileCalibration={() => setPageIndex(20)}
           />
         );
       case 16:
@@ -801,6 +804,20 @@ export default function App() {
             onOpenProfileBazi={() => setPageIndex(16)}
             onOpenProfileSchedule={() => setPageIndex(17)}
             onOpenProfileCalendar={() => setPageIndex(18)}
+            onOpenProfileCalibration={() => setPageIndex(20)}
+          />
+        );
+      case 20:
+        return (
+          <ProfileCalibrationPage
+            birthYear={birthday.year}
+            fortunateYear={fortunateYear}
+            season={season}
+            direction={direction}
+            onFortunateYearChange={saveFortunateYear}
+            onSeasonChange={saveSeason}
+            onDirectionChange={saveDirection}
+            onBack={() => goHome()}
           />
         );
       default:

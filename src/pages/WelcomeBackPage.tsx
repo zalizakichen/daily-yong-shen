@@ -16,6 +16,7 @@ type Props = {
   onOpenProfileBazi: () => void;
   onOpenProfileSchedule: () => void;
   onOpenProfileCalendar: () => void;
+  onOpenProfileCalibration: () => void;
 };
 
 export default function WelcomeBackPage({
@@ -30,6 +31,7 @@ export default function WelcomeBackPage({
   onOpenProfileBazi,
   onOpenProfileSchedule,
   onOpenProfileCalendar,
+  onOpenProfileCalibration,
 }: Props) {
   const [now, setNow] = useState(() => new Date());
 
@@ -83,6 +85,7 @@ export default function WelcomeBackPage({
           onOpenProfileBazi={onOpenProfileBazi}
           onOpenProfileSchedule={onOpenProfileSchedule}
           onOpenProfileCalendar={onOpenProfileCalendar}
+          onOpenProfileCalibration={onOpenProfileCalibration}
         />
 
       </main>

@@ -11,13 +11,19 @@ import {
 } from "./schedule";
 import { SHICHEN_OPTIONS } from "./shichen";
 
+export type CalibrationField = "fortunateYear" | "season" | "direction";
+
+export type CalibrationItem = {
+  field: CalibrationField;
+  question: string;
+  answer: string;
+};
+
 export type ReviewField =
   | "birthday"
   | "shichen"
   | "gender"
-  | "fortunateYear"
-  | "season"
-  | "direction"
+  | CalibrationField
   | "scene"
   | "leisure"
   | "schedule";
@@ -66,6 +72,30 @@ function formatSchedule(schedule: ScheduleValue): string {
       .filter(Boolean)
       .join("、") || "未选择";
   return `${weekdays}；${timeSlots}`;
+}
+
+export function buildCalibrationItems(profile: {
+  fortunateYear: number;
+  season: SeasonValue;
+  direction: DirectionValue;
+}): CalibrationItem[] {
+  return [
+    {
+      field: "fortunateYear",
+      question: "哪一年让你最感顺遂？",
+      answer: `${profile.fortunateYear}年`,
+    },
+    {
+      field: "season",
+      question: "哪个季节让你最感舒适？",
+      answer: formatSeason(profile.season),
+    },
+    {
+      field: "direction",
+      question: "最有乐趣的旅行目的地方位",
+      answer: formatDirection(profile.direction),
+    },
+  ];
 }
 
 export function buildReviewItems(profile: UserProfile): ReviewItem[] {
