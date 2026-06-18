@@ -1444,11 +1444,13 @@ button {
   width: 100%;
 }
 
-.page-transition.is-visible {
+.page-transition.is-visible .page-main,
+.page-transition.is-visible .placeholder-text {
   animation: fade-in 0.45s ease forwards;
 }
 
-.page-transition.is-exiting {
+.page-transition.is-exiting .page-main,
+.page-transition.is-exiting .placeholder-text {
   animation: fade-out 0.35s ease forwards;
 }
 
@@ -1473,8 +1475,10 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-transition.is-visible,
-  .page-transition.is-exiting {
+  .page-transition.is-visible .page-main,
+  .page-transition.is-visible .placeholder-text,
+  .page-transition.is-exiting .page-main,
+  .page-transition.is-exiting .placeholder-text {
     animation: none;
   }
 }
