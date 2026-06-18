@@ -1,4 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import {
+  buildPushNotificationContent,
+  type PushRecord,
+} from "../_lib/pushAdvice";
 
 type TimeSlotValue =
   | "06:00"
@@ -19,12 +23,6 @@ type WeekdayValue =
 type ScheduleValue = {
   weekdays: WeekdayValue[];
   timeSlots: TimeSlotValue[];
-};
-type PushRecord = {
-  yongShen: string;
-  title: string;
-  summary: string;
-  detail: string;
 };
 type PushHistory = Record<string, PushRecord>;
 type ServerAdviceProfile = {
@@ -236,43 +234,6 @@ function shouldFireScheduledPushInTimezone(
   );
 }
 
-async function buildPushNotificationContent(
-  profile: ServerAdviceProfile,
-  date: Date,
-  userName: string,
-): Promise<{ title: string; body: string; snapshot: PushRecord }> {
-  try {
-    const { computeDailyYongShenAdvice, snapshotFromAdvice } = await import(
-      "../../src/data/dailyYongShenAdvice"
-    );
-    const advice = computeDailyYongShenAdvice(date, profile as never);
-    const snapshot = snapshotFromAdvice(advice);
-    const greeting = userName.trim() ? `${userName.trim()}，` : "";
-    return {
-      title: advice.title,
-      body: `${greeting}${advice.summary}`,
-      snapshot,
-    };
-  } catch (error) {
-    console.error("Falling back to simple push content", error);
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const greeting = userName.trim() ? `${userName.trim()}，` : "";
-    const title = `${month}月${day}日每日用神`;
-    const summary = "今日用神建议已就绪，点此查看。";
-    return {
-      title,
-      body: `${greeting}${summary}`,
-      snapshot: {
-        yongShen: "均衡",
-        title,
-        summary,
-        detail: summary,
-      },
-    };
-  }
-}
-
 async function sendWebPush(
   subscription: PushSubscriptionPayload,
   payload: Record<string, unknown>,
@@ -343,9 +304,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const now = new Date();
       const dateKey = todayDateKeyInTimezone(record.timezone, now);
-      const { title, body, snapshot } = await buildPushNotificationContent(
+      const { title, body, snapshot } = buildPushNotificationContent(
         record.profile,
-        now,
+        dateKey,
         record.userName,
       );
 
