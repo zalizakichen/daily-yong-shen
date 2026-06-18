@@ -12,7 +12,7 @@ export default function FinalQuestionsIntroPage({ onPrev, onNext }: Props) {
 
       <main className="page-main">
         <TypewriterText
-          text={"最后几个问题\n让我的推荐更加有用"}
+          text={"最后两个问题\n让我的推荐更加有用"}
           className="typewriter-title typewriter-title--multiline"
         />
       </main>

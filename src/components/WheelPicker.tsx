@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { triggerWheelHaptic } from "../utils/haptics";
 
 export const WHEEL_ITEM_HEIGHT = 36;
 export const WHEEL_VISIBLE_COUNT = 3;
@@ -27,6 +28,7 @@ export default function WheelPicker<T extends string | number>({
 }: Props<T>) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isScrollingRef = useRef(false);
+  const activeIndexRef = useRef(0);
   const itemHeight = compact ? WHEEL_INLINE_ITEM_HEIGHT : WHEEL_ITEM_HEIGHT;
   const visibleCount = compact ? WHEEL_INLINE_VISIBLE_COUNT : WHEEL_VISIBLE_COUNT;
   const selectedIndex = Math.max(
@@ -35,6 +37,7 @@ export default function WheelPicker<T extends string | number>({
   );
 
   useEffect(() => {
+    activeIndexRef.current = selectedIndex;
     const el = scrollRef.current;
     if (!el || isScrollingRef.current) return;
     el.scrollTop = selectedIndex * itemHeight;
@@ -44,6 +47,10 @@ export default function WheelPicker<T extends string | number>({
     const el = scrollRef.current;
     if (!el) return;
     const clamped = Math.max(0, Math.min(options.length - 1, index));
+    if (clamped !== activeIndexRef.current) {
+      activeIndexRef.current = clamped;
+      triggerWheelHaptic();
+    }
     isScrollingRef.current = true;
     el.scrollTo({ top: clamped * itemHeight, behavior: "smooth" });
     window.setTimeout(() => {
@@ -58,6 +65,10 @@ export default function WheelPicker<T extends string | number>({
     if (!el || isScrollingRef.current) return;
     const index = Math.round(el.scrollTop / itemHeight);
     const clamped = Math.max(0, Math.min(options.length - 1, index));
+    if (clamped !== activeIndexRef.current) {
+      activeIndexRef.current = clamped;
+      triggerWheelHaptic();
+    }
     const next = options[clamped];
     if (next && next.value !== value) onChange(next.value);
   };
