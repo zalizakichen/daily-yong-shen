@@ -1,8 +1,17 @@
 /**
  * Vercel serverless 专用：不 import src/，避免 cron 动态加载失败。
- * 与 src/engine + dailyYongShenAdvice 保持同算法。
+ * lunar-javascript 必须动态 import，顶层 import 会导致 Vercel FUNCTION_INVOCATION_FAILED。
  */
-import { Solar } from "lunar-javascript";
+type SolarStatic = typeof import("lunar-javascript").Solar;
+
+let solarPromise: Promise<SolarStatic> | null = null;
+
+async function loadSolar(): Promise<SolarStatic> {
+  if (!solarPromise) {
+    solarPromise = import("lunar-javascript").then((module) => module.Solar);
+  }
+  return solarPromise;
+}
 
 type WuXing = "金" | "木" | "水" | "火" | "土";
 type YongShenOutput = WuXing | "均衡";
@@ -134,6 +143,18 @@ function applyZhiCangGan(
   items.forEach((item) => {
     vector[item.wuXing] += weight * item.ratio;
   });
+}
+
+function allocateVectorPoints(
+  gan: string,
+  zhi: string,
+  ganWeight: number,
+  vector: Record<WuXing, number>,
+  zhiWeight = ganWeight,
+) {
+  const gWuXing = GAN_WUXING[gan as TianGan];
+  if (gWuXing) vector[gWuXing] += ganWeight;
+  applyZhiCangGan(zhi, vector, zhiWeight);
 }
 
 const YIN_XING: Record<WuXing, WuXing> = {
@@ -280,10 +301,11 @@ function buildEngineInput(profile: ServerAdviceProfile) {
   };
 }
 
-function calculateDailyYongShenComplete(
+async function calculateDailyYongShenComplete(
   profile: ReturnType<typeof buildEngineInput>,
   targetDate: Date,
 ) {
+  const Solar = await loadSolar();
   const V_base = createEmptyVector();
   const V_adjust = createEmptyVector();
   const V_transit = createEmptyVector();
@@ -387,9 +409,9 @@ export function dateFromDateKey(dateKey: string): Date {
   return new Date(year, month - 1, day, 12, 0, 0);
 }
 
-function computePushAdvice(profile: ServerAdviceProfile, targetDate: Date) {
+async function computePushAdvice(profile: ServerAdviceProfile, targetDate: Date) {
   const engineInput = buildEngineInput(profile);
-  const { decision } = calculateDailyYongShenComplete(engineInput, targetDate);
+  const { decision } = await calculateDailyYongShenComplete(engineInput, targetDate);
   const wuXing = decision.yongShen;
   const tone = wuXing === "均衡" ? BALANCED_TONE : ELEMENT_TONE[wuXing];
   const userElement =
@@ -421,17 +443,17 @@ function computePushAdvice(profile: ServerAdviceProfile, targetDate: Date) {
   };
 }
 
-export function buildPushNotificationContent(
+export async function buildPushNotificationContent(
   profile: ServerAdviceProfile,
   dateKey: string,
   userName: string,
-): { title: string; body: string; snapshot: PushRecord } {
+): Promise<{ title: string; body: string; snapshot: PushRecord }> {
   if (!profile?.birthday?.year || !profile?.birthday?.month || !profile?.birthday?.day) {
     throw new Error("Invalid profile: missing birthday");
   }
 
   const targetDate = dateFromDateKey(dateKey);
-  const advice = computePushAdvice(profile, targetDate);
+  const advice = await computePushAdvice(profile, targetDate);
   const greeting = userName.trim() ? `${userName.trim()}，` : "";
   return {
     title: advice.title,

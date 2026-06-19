@@ -1,9 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import webpush from "web-push";
-import {
-  buildPushNotificationContent,
-  type PushRecord,
-} from "../_lib/pushAdvice";
+import type { PushRecord } from "../_lib/pushAdvice";
 
 type TimeSlotValue =
   | "06:00"
@@ -261,6 +257,7 @@ async function sendWebPush(
   subscription: PushSubscriptionPayload,
   payload: Record<string, unknown>,
 ): Promise<void> {
+  const webpush = (await import("web-push")).default;
   const publicKey = process.env.VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT ?? "mailto:admin@example.com";
@@ -328,7 +325,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const now = new Date();
         const dateKey = todayDateKeyInTimezone(record.timezone, now);
-        const { title, body, snapshot } = buildPushNotificationContent(
+        const { buildPushNotificationContent } = await import("../_lib/pushAdvice");
+        const { title, body, snapshot } = await buildPushNotificationContent(
           record.profile,
           dateKey,
           record.userName,
