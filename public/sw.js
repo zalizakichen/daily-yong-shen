@@ -10,16 +10,39 @@ self.addEventListener("push", (event) => {
   const body =
     payload.body ?? "您预约的每日用神已更新，点击查看。";
   const icon = payload.icon ?? "/icons/icon-192.png";
+  const pushPayload = payload.payload ?? { type: "daily-yong-shen" };
+  const dateKey = pushPayload.dateKey;
+  const pushRecord = pushPayload.pushRecord;
+  const cacheName = "daily-yong-shen-v1";
 
-  event.waitUntil(
+  const tasks = [
     self.registration.showNotification(title, {
       body,
       icon,
       badge: icon,
       tag: "daily-yong-shen",
-      data: payload.payload ?? { type: "daily-yong-shen" },
+      data: pushPayload,
     }),
-  );
+  ];
+
+  if (
+    typeof dateKey === "string" &&
+    pushRecord &&
+    typeof pushRecord === "object"
+  ) {
+    tasks.push(
+      caches.open(cacheName).then((cache) =>
+        cache.put(
+          `/__push-record__/${dateKey}`,
+          new Response(JSON.stringify(pushRecord), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        ),
+      ),
+    );
+  }
+
+  event.waitUntil(Promise.all(tasks));
 });
 
 self.addEventListener("notificationclick", (event) => {

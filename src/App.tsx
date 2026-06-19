@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PageTransition from "./components/PageTransition";
 import DailyYongShenPage from "./pages/DailyYongShenPage";
 import WelcomeBackPage from "./pages/WelcomeBackPage";
@@ -70,11 +70,17 @@ import {
   snapshotFromAdvice,
   type AdviceProfile,
 } from "./data/dailyYongShenAdvice";
-import { hasRecordedPush, type PushHistory } from "./data/pushHistory";
+import {
+  hasRecordedPush,
+  shouldOpenDailyPage,
+  tryBackfillTodayPush,
+  type PushHistory,
+} from "./data/pushHistory";
 import {
   registerPushServiceWorker,
   requestNotificationPermission,
 } from "./utils/pushNotifications";
+import { writeCachedPushRecord } from "./utils/pushRecordCache";
 import { subscribeToWebPush } from "./utils/webPushSubscription";
 
 function applyProfile(profile: StoredUserProfile) {
@@ -134,7 +140,13 @@ function buildStoredProfile(state: {
 }
 
 function resolveInitialPageIndex(profile: StoredUserProfile): number {
-  if (hasRecordedPush(new Date(), profile.pushRecords ?? {})) {
+  if (
+    shouldOpenDailyPage(
+      profile.schedule,
+      profile.pushEnabledSince ?? null,
+      profile.pushRecords ?? {},
+    )
+  ) {
     return 19;
   }
   if (!hasStoredUsers()) {
@@ -165,6 +177,8 @@ export default function App() {
   const [pushRecords, setPushRecords] = useState<PushHistory>(
     initial.pushRecords ?? {},
   );
+  const pushRecordsRef = useRef(pushRecords);
+  pushRecordsRef.current = pushRecords;
   const [onboardingPageIndex, setOnboardingPageIndex] = useState<number | null>(
     initial.onboardingPageIndex ?? null,
   );
@@ -289,10 +303,17 @@ export default function App() {
     [adviceProfile],
   );
 
-  const handlePushTriggered = (nextRecords: PushHistory) => {
-    setPushRecords(nextRecords);
-    persistProfile({ pushRecords: nextRecords });
-  };
+  const handlePushTriggered = useCallback(
+    (nextRecords: PushHistory) => {
+      pushRecordsRef.current = nextRecords;
+      setPushRecords(nextRecords);
+      persistProfile({ pushRecords: nextRecords });
+      if (shouldOpenDailyPage(schedule, pushEnabledSince, nextRecords)) {
+        setPageIndex((current) => (current === 0 ? 19 : current));
+      }
+    },
+    [schedule, pushEnabledSince],
+  );
 
   useScheduledPushNotifications({
     schedule,
@@ -303,6 +324,45 @@ export default function App() {
     onPushTriggered: handlePushTriggered,
     onOpenDailyPage: () => setPageIndex(19),
   });
+
+  useEffect(() => {
+    if (!pushEnabledSince) return;
+
+    const runBackfill = () => {
+      const now = new Date();
+      const nextRecords = tryBackfillTodayPush(
+        schedule,
+        pushEnabledSince,
+        pushRecordsRef.current,
+        createPushSnapshot(),
+        now,
+      );
+      if (!nextRecords) return;
+
+      const dateKey = formatDateKey(now);
+      const snapshot = nextRecords[dateKey];
+      if (snapshot) {
+        void writeCachedPushRecord(dateKey, snapshot);
+      }
+      handlePushTriggered(nextRecords);
+    };
+
+    runBackfill();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        runBackfill();
+      }
+    };
+
+    const timer = window.setInterval(runBackfill, 60_000);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [pushEnabledSince, schedule, createPushSnapshot, handlePushTriggered]);
 
   useWebPushSync({
     pushEnabledSince,
@@ -404,7 +464,9 @@ export default function App() {
   const showResumeOnboarding = canResumeOnboarding(getStoredProfile());
 
   const goHome = () => {
-    setPageIndex(hasRecordedPush(new Date(), pushRecords) ? 19 : 0);
+    setPageIndex(
+      shouldOpenDailyPage(schedule, pushEnabledSince, pushRecords) ? 19 : 0,
+    );
   };
 
   const handleSelectUser = (name: string) => {

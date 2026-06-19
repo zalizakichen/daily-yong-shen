@@ -1,6 +1,9 @@
 import type { YongShenOutput } from "../engine/types";
 import { formatDateKey } from "../utils/yongShenCalendar";
-import { shouldFireScheduledPush } from "../utils/pushNotificationScheduler";
+import {
+  hasTodayScheduledPushPassed,
+  shouldFireScheduledPush,
+} from "../utils/pushNotificationScheduler";
 
 export { shouldFireScheduledPush } from "../utils/pushNotificationScheduler";
 
@@ -41,6 +44,35 @@ export function createPushRecord(input: {
     title: input.title,
     summary: input.summary,
     detail: input.detail,
+  };
+}
+
+export function shouldOpenDailyPage(
+  schedule: Parameters<typeof shouldFireScheduledPush>[0],
+  pushEnabledSince: string | null,
+  pushRecords: PushHistory,
+  now: Date = new Date(),
+): boolean {
+  if (hasRecordedPush(now, pushRecords)) return true;
+  return hasTodayScheduledPushPassed(schedule, pushEnabledSince, now);
+}
+
+/** 错过推送窗口后，打开 App 时补录今日用神快照 */
+export function tryBackfillTodayPush(
+  schedule: Parameters<typeof shouldFireScheduledPush>[0],
+  pushEnabledSince: string | null,
+  pushRecords: PushHistory,
+  snapshot: PushRecord,
+  now: Date = new Date(),
+): PushHistory | null {
+  if (hasRecordedPush(now, pushRecords)) return null;
+  if (!hasTodayScheduledPushPassed(schedule, pushEnabledSince, now)) {
+    return null;
+  }
+
+  return {
+    ...pushRecords,
+    [formatDateKey(now)]: snapshot,
   };
 }
 

@@ -186,7 +186,10 @@ function getZonedParts(timeZone: string, date = new Date()) {
     month: Number(get("month")),
     day: Number(get("day")),
     weekday: JS_DAY_FROM_SHORT[get("weekday")] ?? 0,
-    hour: Number(get("hour")),
+    hour: (() => {
+      const hour = Number(get("hour"));
+      return hour === 24 ? 0 : hour;
+    })(),
     minute: Number(get("minute")),
   };
 }

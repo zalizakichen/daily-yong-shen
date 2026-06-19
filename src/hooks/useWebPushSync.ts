@@ -7,6 +7,7 @@ import {
   mergePushRecords,
   syncPushSubscription,
 } from "../utils/webPushSubscription";
+import { readCachedPushRecords } from "../utils/pushRecordCache";
 
 type UseWebPushSyncOptions = {
   pushEnabledSince: string | null;
@@ -38,6 +39,21 @@ export function useWebPushSync({
     let cancelled = false;
 
     const sync = async () => {
+      const cached = await readCachedPushRecords();
+      if (Object.keys(cached).length > 0) {
+        const mergedFromCache = mergePushRecords(
+          pushRecordsRef.current,
+          cached,
+        );
+        if (
+          JSON.stringify(mergedFromCache) !==
+          JSON.stringify(pushRecordsRef.current)
+        ) {
+          pushRecordsRef.current = mergedFromCache;
+          onSyncRef.current(mergedFromCache);
+        }
+      }
+
       const result = await syncPushSubscription({
         userName,
         schedule,

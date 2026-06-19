@@ -63,6 +63,42 @@ export function getTodayPushDateTime(
   return pushTime;
 }
 
+export function isTodayScheduledPushDay(
+  schedule: ScheduleValue,
+  pushEnabledSince: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (
+    !pushEnabledSince ||
+    schedule.weekdays.length === 0 ||
+    schedule.timeSlots.length === 0
+  ) {
+    return false;
+  }
+
+  const enabledStart = startOfDay(parseDateKey(pushEnabledSince));
+  const todayStart = startOfDay(now);
+  if (todayStart.getTime() < enabledStart.getTime()) return false;
+
+  return getTodayPushDateTime(schedule, now) !== null;
+}
+
+/** 今日预约时刻已过（含宽限期之后），应展示当日用神 */
+export function hasTodayScheduledPushPassed(
+  schedule: ScheduleValue,
+  pushEnabledSince: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (!isTodayScheduledPushDay(schedule, pushEnabledSince, now)) {
+    return false;
+  }
+
+  const pushTime = getTodayPushDateTime(schedule, now);
+  if (!pushTime) return false;
+
+  return now.getTime() >= pushTime.getTime();
+}
+
 export function shouldFireScheduledPush(
   schedule: ScheduleValue,
   pushEnabledSince: string | null,
