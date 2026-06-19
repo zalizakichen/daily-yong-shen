@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import webpush from "web-push";
 import {
   buildPushNotificationContent,
   type PushRecord,
@@ -138,7 +139,16 @@ async function listAllSubscriptions(): Promise<StoredPushSubscription[]> {
   const ids = Array.isArray(idsRaw)
     ? idsRaw.filter((id): id is string => typeof id === "string")
     : [];
-  const records = await Promise.all(ids.map((id) => getSubscription(id)));
+  const records = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        return await getSubscription(id);
+      } catch (error) {
+        console.error(`Failed to load subscription ${id}`, error);
+        return null;
+      }
+    }),
+  );
   return records.filter(
     (record): record is StoredPushSubscription => record !== null,
   );
@@ -168,30 +178,40 @@ function isWithinScheduledSlotGrace(
 }
 
 function getZonedParts(timeZone: string, date = new Date()) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const parts = formatter.formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  return {
-    year: Number(get("year")),
-    month: Number(get("month")),
-    day: Number(get("day")),
-    weekday: JS_DAY_FROM_SHORT[get("weekday")] ?? 0,
-    hour: (() => {
-      const hour = Number(get("hour"));
-      return hour === 24 ? 0 : hour;
-    })(),
-    minute: Number(get("minute")),
-  };
+  const safeTimeZone =
+    typeof timeZone === "string" && timeZone.trim().length > 0
+      ? timeZone.trim()
+      : "Asia/Shanghai";
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: safeTimeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(date);
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((part) => part.type === type)?.value ?? "";
+    return {
+      year: Number(get("year")),
+      month: Number(get("month")),
+      day: Number(get("day")),
+      weekday: JS_DAY_FROM_SHORT[get("weekday")] ?? 0,
+      hour: (() => {
+        const hour = Number(get("hour"));
+        return hour === 24 ? 0 : hour;
+      })(),
+      minute: Number(get("minute")),
+    };
+  } catch (error) {
+    console.error(`Invalid timezone "${timeZone}", falling back to Asia/Shanghai`, error);
+    if (safeTimeZone === "Asia/Shanghai") throw error;
+    return getZonedParts("Asia/Shanghai", date);
+  }
 }
 
 function todayDateKeyInTimezone(timeZone: string, now = new Date()): string {
@@ -241,7 +261,6 @@ async function sendWebPush(
   subscription: PushSubscriptionPayload,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  const webpush = (await import("web-push")).default;
   const publicKey = process.env.VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT ?? "mailto:admin@example.com";
@@ -290,57 +309,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let sent = 0;
     let skipped = 0;
     let failed = 0;
+    const errors: string[] = [];
 
     for (const record of subscriptions) {
-      const pushHistory = Object.keys(record.pushRecords);
-      const shouldFire = shouldFireScheduledPushInTimezone(
-        record.schedule,
-        record.pushEnabledSince,
-        pushHistory,
-        record.timezone,
-      );
-
-      if (!shouldFire) {
-        skipped += 1;
-        continue;
-      }
-
-      const now = new Date();
-      const dateKey = todayDateKeyInTimezone(record.timezone, now);
-      const { title, body, snapshot } = buildPushNotificationContent(
-        record.profile,
-        dateKey,
-        record.userName,
-      );
-
       try {
-        await sendWebPush(record.subscription, {
-          title,
-          body,
-          icon: "/icons/icon-192.png",
-          payload: {
-            type: "daily-yong-shen",
-            dateKey,
-            pushRecord: snapshot,
-          },
-        });
+        const pushHistory = Object.keys(record.pushRecords ?? {});
+        const shouldFire = shouldFireScheduledPushInTimezone(
+          record.schedule,
+          record.pushEnabledSince,
+          pushHistory,
+          record.timezone,
+        );
 
-        await updatePushRecords(record.id, {
-          ...record.pushRecords,
-          [dateKey]: snapshot,
-        });
-        sent += 1;
-      } catch (error) {
-        const statusCode =
-          error && typeof error === "object" && "statusCode" in error
-            ? Number((error as { statusCode: number }).statusCode)
-            : 0;
-
-        if (statusCode === 404 || statusCode === 410) {
-          await removeSubscription(record.id);
+        if (!shouldFire) {
+          skipped += 1;
+          continue;
         }
 
-        console.error(`Failed to push to ${record.id}`, error);
+        const now = new Date();
+        const dateKey = todayDateKeyInTimezone(record.timezone, now);
+        const { title, body, snapshot } = buildPushNotificationContent(
+          record.profile,
+          dateKey,
+          record.userName,
+        );
+
+        try {
+          await sendWebPush(record.subscription, {
+            title,
+            body,
+            icon: "/icons/icon-192.png",
+            payload: {
+              type: "daily-yong-shen",
+              dateKey,
+              pushRecord: snapshot,
+            },
+          });
+
+          await updatePushRecords(record.id, {
+            ...(record.pushRecords ?? {}),
+            [dateKey]: snapshot,
+          });
+          sent += 1;
+        } catch (error) {
+          const statusCode =
+            error && typeof error === "object" && "statusCode" in error
+              ? Number((error as { statusCode: number }).statusCode)
+              : 0;
+
+          if (statusCode === 404 || statusCode === 410) {
+            await removeSubscription(record.id);
+          }
+
+          const message =
+            error instanceof Error ? error.message : String(error);
+          console.error(`Failed to push to ${record.id}`, error);
+          errors.push(`${record.id}: push failed (${message})`);
+          failed += 1;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Failed to process subscription ${record.id}`, error);
+        errors.push(`${record.id}: ${message}`);
         failed += 1;
       }
     }
@@ -350,6 +380,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sent,
       skipped,
       failed,
+      errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
     });
   } catch (error) {
     console.error("send-pushes cron failed", error);

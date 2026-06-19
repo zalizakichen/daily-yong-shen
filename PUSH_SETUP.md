@@ -16,11 +16,11 @@ Vercel → **Integrations** → **Upstash Redis** → 关联本项目。
 
 Vercel **Environment Variables** 添加 `CRON_SECRET`（随机字符串，Sensitive）。
 
-## 4. 配置 cron-job.org（7 个整点）
+## 4. 配置 cron-job.org（推荐 1 个每小时任务）
 
 详见 **[scripts/cron-jobs-beijing.md](./scripts/cron-jobs-beijing.md)**。
 
-北京时间 **06:00 / 08:00 / 10:00 / 12:00 / 14:00 / 16:00 / 18:00** 各 1 个任务，每天共 7 次请求。
+推荐：**每小时整点 1 个任务**（Asia/Shanghai），比 7 个整点任务更稳定。
 
 ## 5. 部署
 

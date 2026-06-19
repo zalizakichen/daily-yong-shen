@@ -124,21 +124,16 @@ function createEmptyVector(): Record<WuXing, number> {
   return { 金: 0, 木: 0, 水: 0, 火: 0, 土: 0 };
 }
 
-function allocateVectorPoints(
-  gan: string,
+function applyZhiCangGan(
   zhi: string,
-  ganWeight: number,
   vector: Record<WuXing, number>,
-  zhiWeight = ganWeight,
+  weight: number,
 ) {
-  const gWuXing = GAN_WUXING[gan as TianGan];
-  if (gWuXing) vector[gWuXing] += ganWeight;
   const items = ZHI_CANG_GAN[zhi as DiZhi];
-  if (items) {
-    items.forEach((item) => {
-      vector[item.wuXing] += zhiWeight * item.ratio;
-    });
-  }
+  if (!items) return;
+  items.forEach((item) => {
+    vector[item.wuXing] += weight * item.ratio;
+  });
 }
 
 const YIN_XING: Record<WuXing, WuXing> = {
@@ -150,6 +145,9 @@ const GUAN_XING: Record<WuXing, WuXing> = {
 };
 
 function randomPick<T>(items: T[]): T {
+  if (items.length === 0) {
+    throw new Error("randomPick called with empty items");
+  }
   return items[Math.floor(Math.random() * items.length)];
 }
 
@@ -311,26 +309,24 @@ function calculateDailyYongShenComplete(
     V_base[GAN_WUXING[g as TianGan]] += 10;
   });
 
-  ZHI_CANG_GAN[bEightChar.getMonthZhi() as DiZhi].forEach((cg) => {
-    V_base[cg.wuXing] += 24 * cg.ratio;
-  });
+  applyZhiCangGan(bEightChar.getMonthZhi(), V_base, 24);
 
   [bEightChar.getYearZhi(), bEightChar.getDayZhi(), bEightChar.getTimeZhi()].forEach(
     (z) => {
-      ZHI_CANG_GAN[z as DiZhi].forEach((cg) => {
-        V_base[cg.wuXing] += 12 * cg.ratio;
-      });
+      applyZhiCangGan(z, V_base, 12);
     },
   );
 
-  const successSolar = Solar.fromYmdHms(profile.successfulYear, 6, 1, 12, 0, 0);
-  allocateVectorPoints(
-    successSolar.getLunar().getYearGan(),
-    successSolar.getLunar().getYearZhi(),
-    4,
-    V_adjust,
-    6,
-  );
+  if (profile.successfulYear > 0) {
+    const successSolar = Solar.fromYmdHms(profile.successfulYear, 6, 1, 12, 0, 0);
+    allocateVectorPoints(
+      successSolar.getLunar().getYearGan(),
+      successSolar.getLunar().getYearZhi(),
+      4,
+      V_adjust,
+      6,
+    );
+  }
 
   V_adjust[SEASON_MAP[profile.comfortableSeason]] += 10;
   V_adjust[DIRECTION_MAP[profile.favoriteDirection]] += 5;
@@ -430,6 +426,10 @@ export function buildPushNotificationContent(
   dateKey: string,
   userName: string,
 ): { title: string; body: string; snapshot: PushRecord } {
+  if (!profile?.birthday?.year || !profile?.birthday?.month || !profile?.birthday?.day) {
+    throw new Error("Invalid profile: missing birthday");
+  }
+
   const targetDate = dateFromDateKey(dateKey);
   const advice = computePushAdvice(profile, targetDate);
   const greeting = userName.trim() ? `${userName.trim()}，` : "";
