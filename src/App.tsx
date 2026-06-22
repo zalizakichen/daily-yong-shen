@@ -40,6 +40,7 @@ import type { DirectionValue } from "./data/direction";
 import type { SceneValue } from "./data/scene";
 import type { LeisureValue } from "./data/leisure";
 import type { ScheduleValue } from "./data/schedule";
+import { normalizeSchedule } from "./data/schedule";
 import {
   normalizeLearnProgress,
   type LearnProgress,
@@ -441,8 +442,9 @@ export default function App() {
   };
 
   const updateSchedule = (value: ScheduleValue) => {
-    setSchedule(value);
-    persistProfile({ schedule: value });
+    const next = normalizeSchedule(value);
+    setSchedule(next);
+    persistProfile({ schedule: next });
   };
 
   const choosePath = (path: Exclude<YongShenPath, null>) => {

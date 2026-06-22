@@ -2,12 +2,12 @@ import { useState } from "react";
 import TypewriterText from "../components/TypewriterText";
 import MultiSelectGroup from "../components/MultiSelectGroup";
 import {
-  TIME_SLOT_OPTIONS,
-  selectSingleItem,
+  DAILY_PUSH_TIME_LABEL,
+  isScheduleComplete,
+  normalizeSchedule,
   toggleItem,
   WEEKDAY_OPTIONS,
   type ScheduleValue,
-  type TimeSlotValue,
   type WeekdayValue,
 } from "../data/schedule";
 
@@ -30,28 +30,19 @@ export default function SchedulePage({
 }: Props) {
   const [error, setError] = useState<string | null>(null);
 
-  const isScheduleComplete =
-    schedule.weekdays.length > 0 && schedule.timeSlots.length > 0;
-
   const toggleWeekday = (value: WeekdayValue) => {
-    onScheduleChange({
-      ...schedule,
-      weekdays: toggleItem(schedule.weekdays, value),
-    });
-    setError(null);
-  };
-
-  const selectTimeSlot = (value: TimeSlotValue) => {
-    onScheduleChange({
-      ...schedule,
-      timeSlots: selectSingleItem(schedule.timeSlots, value),
-    });
+    onScheduleChange(
+      normalizeSchedule({
+        ...schedule,
+        weekdays: toggleItem(schedule.weekdays, value),
+      }),
+    );
     setError(null);
   };
 
   const guardSchedule = (action?: () => void) => {
-    if (!isScheduleComplete) {
-      setError("请选择时间");
+    if (!isScheduleComplete(schedule)) {
+      setError("请选择星期");
       return;
     }
     action?.();
@@ -74,13 +65,7 @@ export default function SchedulePage({
             selected={schedule.weekdays}
             onToggle={toggleWeekday}
           />
-          <MultiSelectGroup
-            ariaLabel="选择时间"
-            groupClassName="multi-select-group--times"
-            options={TIME_SLOT_OPTIONS}
-            selected={schedule.timeSlots}
-            onToggle={selectTimeSlot}
-          />
+          <p className="schedule-fixed-time">{DAILY_PUSH_TIME_LABEL}</p>
         </div>
 
         {error ? (

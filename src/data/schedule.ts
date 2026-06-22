@@ -7,14 +7,11 @@ export type WeekdayValue =
   | "sat"
   | "sun";
 
-export type TimeSlotValue =
-  | "06:00"
-  | "08:00"
-  | "10:00"
-  | "12:00"
-  | "14:00"
-  | "16:00"
-  | "18:00";
+/** 测试版固定推送时间（北京时间） */
+export type TimeSlotValue = "08:00";
+
+export const DAILY_PUSH_TIME: TimeSlotValue = "08:00";
+export const DAILY_PUSH_TIME_LABEL = "08:00（北京时间）";
 
 export const WEEKDAY_OPTIONS: { value: WeekdayValue; label: string }[] = [
   { value: "mon", label: "每周一" },
@@ -26,14 +23,9 @@ export const WEEKDAY_OPTIONS: { value: WeekdayValue; label: string }[] = [
   { value: "sun", label: "每周日" },
 ];
 
+/** 测试版仅支持 08:00 */
 export const TIME_SLOT_OPTIONS: { value: TimeSlotValue; label: string }[] = [
-  { value: "06:00", label: "06:00" },
-  { value: "08:00", label: "08:00" },
-  { value: "10:00", label: "10:00" },
-  { value: "12:00", label: "12:00" },
-  { value: "14:00", label: "14:00" },
-  { value: "16:00", label: "16:00" },
-  { value: "18:00", label: "18:00" },
+  { value: DAILY_PUSH_TIME, label: DAILY_PUSH_TIME_LABEL },
 ];
 
 export type ScheduleValue = {
@@ -41,25 +33,28 @@ export type ScheduleValue = {
   timeSlots: TimeSlotValue[];
 };
 
+export function normalizeSchedule(value: ScheduleValue): ScheduleValue {
+  const weekdays = value.weekdays.filter((item) =>
+    WEEKDAY_OPTIONS.some((option) => option.value === item),
+  ) as WeekdayValue[];
+  return {
+    weekdays,
+    timeSlots: weekdays.length > 0 ? [DAILY_PUSH_TIME] : [],
+  };
+}
+
 export function loadSchedule(): ScheduleValue {
   try {
     const raw = localStorage.getItem("sendSchedule");
     if (!raw) return { weekdays: [], timeSlots: [] };
-    const parsed = JSON.parse(raw) as ScheduleValue;
-    const weekdays = (parsed.weekdays ?? []).filter((item) =>
-      WEEKDAY_OPTIONS.some((option) => option.value === item),
-    ) as WeekdayValue[];
-    const timeSlots = (parsed.timeSlots ?? []).filter((item) =>
-      TIME_SLOT_OPTIONS.some((option) => option.value === item),
-    ) as TimeSlotValue[];
-    return { weekdays, timeSlots: timeSlots.slice(0, 1) };
+    return normalizeSchedule(JSON.parse(raw) as ScheduleValue);
   } catch {
     return { weekdays: [], timeSlots: [] };
   }
 }
 
 export function saveSchedule(value: ScheduleValue) {
-  localStorage.setItem("sendSchedule", JSON.stringify(value));
+  localStorage.setItem("sendSchedule", JSON.stringify(normalizeSchedule(value)));
 }
 
 export function toggleItem<T extends string>(list: T[], item: T): T[] {
@@ -70,4 +65,8 @@ export function toggleItem<T extends string>(list: T[], item: T): T[] {
 
 export function selectSingleItem<T extends string>(_list: T[], item: T): T[] {
   return [item];
+}
+
+export function isScheduleComplete(schedule: ScheduleValue): boolean {
+  return normalizeSchedule(schedule).weekdays.length > 0;
 }

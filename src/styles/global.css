@@ -284,6 +284,14 @@ button {
   gap: 32px;
 }
 
+.schedule-fixed-time {
+  font-size: 15px;
+  font-weight: 200;
+  letter-spacing: 0.04em;
+  color: rgba(204, 204, 204, 0.78);
+  text-align: center;
+}
+
 .multi-select-group {
   display: flex;
   flex-wrap: wrap;

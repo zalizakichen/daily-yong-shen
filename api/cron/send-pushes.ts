@@ -1,14 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { PushRecord } from "../_lib/pushAdvice";
 
-type TimeSlotValue =
-  | "06:00"
-  | "08:00"
-  | "10:00"
-  | "12:00"
-  | "14:00"
-  | "16:00"
-  | "18:00";
 type WeekdayValue =
   | "mon"
   | "tue"
@@ -19,7 +11,7 @@ type WeekdayValue =
   | "sun";
 type ScheduleValue = {
   weekdays: WeekdayValue[];
-  timeSlots: TimeSlotValue[];
+  timeSlots: string[];
 };
 type PushHistory = Record<string, PushRecord>;
 type ServerAdviceProfile = {
@@ -49,8 +41,9 @@ type StoredPushSubscription = {
   updatedAt: string;
 };
 
+/** Vercel Cron 在北京时间 08:00 触发（UTC 00:00） */
+const BEIJING_TZ = "Asia/Shanghai";
 const SUBS_INDEX_KEY = "push:subscription-ids";
-const CRON_SLOT_GRACE_MINUTES = 15;
 const WEEKDAY_TO_JS: Record<WeekdayValue, number> = {
   sun: 0,
   mon: 1,
@@ -161,23 +154,11 @@ function startOfDay(date: Date): Date {
   return next;
 }
 
-function isWithinScheduledSlotGrace(
-  slot: TimeSlotValue,
-  hour: number,
-  minute: number,
-  graceMinutes = CRON_SLOT_GRACE_MINUTES,
-): boolean {
-  const [slotHour, slotMinute] = slot.split(":").map(Number);
-  if (hour !== slotHour) return false;
-  if (minute < slotMinute) return false;
-  return minute - slotMinute < graceMinutes;
-}
-
 function getZonedParts(timeZone: string, date = new Date()) {
   const safeTimeZone =
     typeof timeZone === "string" && timeZone.trim().length > 0
       ? timeZone.trim()
-      : "Asia/Shanghai";
+      : BEIJING_TZ;
   try {
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: safeTimeZone,
@@ -205,8 +186,8 @@ function getZonedParts(timeZone: string, date = new Date()) {
     };
   } catch (error) {
     console.error(`Invalid timezone "${timeZone}", falling back to Asia/Shanghai`, error);
-    if (safeTimeZone === "Asia/Shanghai") throw error;
-    return getZonedParts("Asia/Shanghai", date);
+    if (safeTimeZone === BEIJING_TZ) throw error;
+    return getZonedParts(BEIJING_TZ, date);
   }
 }
 
@@ -217,40 +198,33 @@ function todayDateKeyInTimezone(timeZone: string, now = new Date()): string {
   return `${zoned.year}-${month}-${day}`;
 }
 
-function shouldFireScheduledPushInTimezone(
+/** 测试版：Vercel 每天 08:00 北京时间触发，按星期判断是否发送 */
+function shouldSendDailyPush(
   schedule: ScheduleValue,
   pushEnabledSince: string | null,
   pushHistory: string[],
-  timeZone: string,
   now: Date = new Date(),
 ): boolean {
-  if (
-    !pushEnabledSince ||
-    schedule.weekdays.length === 0 ||
-    schedule.timeSlots.length === 0
-  ) {
+  if (!pushEnabledSince || !schedule.weekdays?.length) {
     return false;
   }
-  const todayKey = todayDateKeyInTimezone(timeZone, now);
+
+  const todayKey = todayDateKeyInTimezone(BEIJING_TZ, now);
   if (pushHistory.includes(todayKey)) return false;
-  const zoned = getZonedParts(timeZone, now);
+
+  const zoned = getZonedParts(BEIJING_TZ, now);
   const weekdayMatch = schedule.weekdays.some(
-    (item) => WEEKDAY_TO_JS[item] === zoned.weekday,
+    (item) => WEEKDAY_TO_JS[item as WeekdayValue] === zoned.weekday,
   );
   if (!weekdayMatch) return false;
+
   const enabledStart = startOfDay(parseDateKey(pushEnabledSince));
   const todayStart = startOfDay(
     new Date(zoned.year, zoned.month - 1, zoned.day),
   );
   if (todayStart.getTime() < enabledStart.getTime()) return false;
-  const slot = schedule.timeSlots[0];
-  if (!slot) return false;
-  return isWithinScheduledSlotGrace(
-    slot,
-    zoned.hour,
-    zoned.minute,
-    CRON_SLOT_GRACE_MINUTES,
-  );
+
+  return true;
 }
 
 async function sendWebPush(
@@ -272,6 +246,7 @@ async function sendWebPush(
 
 function isAuthorizedCron(req: VercelRequest): boolean {
   const secret = process.env.CRON_SECRET;
+  if (req.headers["x-vercel-cron"]) return true;
   if (!secret) return process.env.NODE_ENV !== "production";
   return req.headers.authorization === `Bearer ${secret}`;
 }
@@ -311,11 +286,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const record of subscriptions) {
       try {
         const pushHistory = Object.keys(record.pushRecords ?? {});
-        const shouldFire = shouldFireScheduledPushInTimezone(
+        const shouldFire = shouldSendDailyPush(
           record.schedule,
           record.pushEnabledSince,
           pushHistory,
-          record.timezone,
         );
 
         if (!shouldFire) {
@@ -323,8 +297,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           continue;
         }
 
-        const now = new Date();
-        const dateKey = todayDateKeyInTimezone(record.timezone, now);
+        const dateKey = todayDateKeyInTimezone(BEIJING_TZ);
         const { buildPushNotificationContent } = await import("../_lib/pushAdvice");
         const { title, body, snapshot } = await buildPushNotificationContent(
           record.profile,
@@ -378,6 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sent,
       skipped,
       failed,
+      schedule: "daily 08:00 Asia/Shanghai via Vercel Cron",
       errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
     });
   } catch (error) {

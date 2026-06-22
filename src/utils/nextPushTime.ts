@@ -1,4 +1,10 @@
-import type { ScheduleValue, TimeSlotValue, WeekdayValue } from "../data/schedule";
+import {
+  isScheduleComplete,
+  normalizeSchedule,
+  type ScheduleValue,
+  type TimeSlotValue,
+  type WeekdayValue,
+} from "../data/schedule";
 
 const WEEKDAY_TO_JS: Record<WeekdayValue, number> = {
   sun: 0,
@@ -21,6 +27,7 @@ function collectCandidates(
   startOffset: number,
   endOffset: number,
 ): Date[] {
+  const normalized = normalizeSchedule(schedule);
   const candidates: Date[] = [];
 
   for (let dayOffset = startOffset; dayOffset <= endOffset; dayOffset += 1) {
@@ -29,10 +36,10 @@ function collectCandidates(
     date.setDate(date.getDate() + dayOffset);
     const jsDay = date.getDay();
 
-    for (const weekday of schedule.weekdays) {
+    for (const weekday of normalized.weekdays) {
       if (WEEKDAY_TO_JS[weekday] !== jsDay) continue;
 
-      for (const slot of schedule.timeSlots) {
+      for (const slot of normalized.timeSlots) {
         const { hour, minute } = parseTimeSlot(slot);
         const candidate = new Date(date);
         candidate.setHours(hour, minute, 0, 0);
@@ -51,12 +58,13 @@ export function getNextPushTime(
   schedule: ScheduleValue,
   now: Date = new Date(),
 ): Date | null {
-  if (schedule.weekdays.length === 0 || schedule.timeSlots.length === 0) {
+  if (!isScheduleComplete(schedule)) {
     return null;
   }
 
-  const thisWeek = collectCandidates(schedule, now, 0, 7);
-  const nextWeek = collectCandidates(schedule, now, 8, 14);
+  const normalized = normalizeSchedule(schedule);
+  const thisWeek = collectCandidates(normalized, now, 0, 7);
+  const nextWeek = collectCandidates(normalized, now, 8, 14);
   const candidates = [...thisWeek, ...nextWeek];
 
   if (candidates.length === 0) return null;

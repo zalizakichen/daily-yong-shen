@@ -15,12 +15,11 @@ import { DIRECTION_OPTIONS, type DirectionValue } from "../data/direction";
 import { SCENE_OPTIONS, type SceneValue } from "../data/scene";
 import { LEISURE_OPTIONS, type LeisureValue } from "../data/leisure";
 import {
-  TIME_SLOT_OPTIONS,
+  DAILY_PUSH_TIME_LABEL,
+  normalizeSchedule,
   WEEKDAY_OPTIONS,
-  selectSingleItem,
   toggleItem,
   type ScheduleValue,
-  type TimeSlotValue,
   type WeekdayValue,
 } from "../data/schedule";
 import { SHICHEN_OPTIONS } from "../data/shichen";
@@ -175,24 +174,15 @@ export default function ReviewPage({
               options={WEEKDAY_OPTIONS}
               selected={profile.schedule.weekdays}
               onToggle={(value: WeekdayValue) =>
-                onScheduleChange({
-                  ...profile.schedule,
-                  weekdays: toggleItem(profile.schedule.weekdays, value),
-                })
+                onScheduleChange(
+                  normalizeSchedule({
+                    ...profile.schedule,
+                    weekdays: toggleItem(profile.schedule.weekdays, value),
+                  }),
+                )
               }
             />
-            <MultiSelectGroup
-              ariaLabel="选择时间"
-              groupClassName="multi-select-group--times"
-              options={TIME_SLOT_OPTIONS}
-              selected={profile.schedule.timeSlots}
-              onToggle={(value: TimeSlotValue) =>
-                onScheduleChange({
-                  ...profile.schedule,
-                  timeSlots: selectSingleItem(profile.schedule.timeSlots, value),
-                })
-              }
-            />
+            <p className="schedule-fixed-time">{DAILY_PUSH_TIME_LABEL}</p>
           </div>
         );
       default:
