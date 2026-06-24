@@ -1,5 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { PushRecord } from "../_lib/pushAdvice";
+import {
+  buildPushNotificationContent,
+  type PushRecord,
+} from "../_lib/pushAdvice.js";
 
 type WeekdayValue =
   | "mon"
@@ -298,7 +301,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const dateKey = todayDateKeyInTimezone(BEIJING_TZ);
-        const { buildPushNotificationContent } = await import("../_lib/pushAdvice");
         const { title, body, snapshot } = await buildPushNotificationContent(
           record.profile,
           dateKey,
